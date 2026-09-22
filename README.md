@@ -23,11 +23,11 @@ notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 
 | KPI | Dono | Estado |
 |---|---|---|
-| Ritmo de faturamento (meta R$ 500 mil/dia) | Ricardo Miyabara | ✅ cobra |
 | Carteira disponível para faturar | Ricardo Miyabara | ✅ cobra |
 | Ritmo de entrada de pedidos | Ricardo Miyabara | ✅ cobra |
 | Pedidos esperando aprovação ou recusa | Ricardo Miyabara | ✅ cobra |
 | Produtos que pararam de vender | Ricardo Miyabara | ✅ cobra |
+| Ritmo de faturamento (meta R$ 500 mil/dia) | Expedição e Forla Silva | ✅ cobra |
 | Ordens de carga montadas/dia | Expedição e Forla Silva | ✅ cobra |
 | Agenda de carga contra a capacidade | Expedição e Forla Silva | ✅ cobra |
 | Notas devolvidas | Alex Souza e Charles Silva | ✅ cobra |
@@ -188,6 +188,27 @@ Nenhuma é projeto grande. Em ordem de custo/benefício:
 | Performance por representante | Diretor comercial fixar a meta individual | decisão, não código |
 | Ruptura de estoque | Acordar com o PCP a fonte de saldo por linha; separar transferência interna de ruptura real | uma conversa + ajuste no SQL |
 | Tempo de setup | Voltar a gravar a parada de setup (parou em 31/10/2024) | reativar tela ou marcar no app do PCP |
+
+---
+
+## Entrada é do comercial, saída é da expedição
+
+A divisão não é por assunto, é por **onde a bola está**:
+
+| | Comercial (Ricardo) | Expedição (Expedição e Forla) |
+|---|---|---|
+| | entrada de pedidos | **ritmo de faturamento** |
+| | carteira disponível para faturar | ordens de carga por dia |
+| | pedidos esperando aprovação | agenda de carga vs capacidade |
+| | produtos que pararam de vender | entregas reagendadas |
+
+Faturar é emitir a nota, e quem emite é quem carrega. O comercial responde
+por trazer pedido e por manter a carteira atendível; o que já está vendido e
+não sai pela porta é da expedição.
+
+A apuração sustenta a divisão: a carteira tem **4 dias de meta com estoque na
+mão** e a agenda tem **9 dias ociosos nos próximos 11 agendados**. Quando o
+dia não bate os R$ 500 mil, o que falta não é pedido.
 
 ---
 

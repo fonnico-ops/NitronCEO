@@ -34,7 +34,7 @@ kpis:
 - id: faturamento_ritmo
   titulo: Ritmo de faturamento
   pergunta: No ritmo de hoje, bato a meta do mês?
-  area: comercial
+  area: logistica
   sql: sql/faturamento_ritmo.sql
   frequencia: diaria
   horario: "07:30"
@@ -45,26 +45,33 @@ kpis:
     verde: 100
     amarelo: 85
     vermelho: 70
-  dono: diretor_comercial
-  canal_teams: comercial
+  dono: logistica
+  canal_teams: logistica
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "Ritmo de faturamento em {valor}% da meta diária"
     passos:
-      - "Diga o que muda na semana: quais pedidos entram e de quem."
-      - "Se o gargalo é carga e não venda, diga isso — eu cobro a expedição."
-      - "A carteira disponível dá 4 dias de meta. Se não estamos faturando, o problema não é falta de pedido."
+      - "Quanto sai hoje e quanto fica, em R$. Não em número de cargas."
+      - "Se a carga não fecha, diga o que falta: doca, veículo, separação ou janela do cliente."
+      - "A carteira dá 4 dias de meta e a agenda tem 9 dias ociosos — se não estamos faturando, o que trava é a saída."
+      - "Se o gargalo for de outra área (crédito travado, falta de estoque), nomeie e eu cobro lá."
     sla_resposta_horas: 4
   status_dado: validado
   modo: ativo
   observacao: >
+    DONO É A EXPEDIÇÃO/FATURAMENTO, não o comercial — definido pela diretoria
+    em 22/09/26. Faturar é emitir a nota, e quem emite é quem carrega. O
+    comercial responde pela ENTRADA de pedido (pedidos_ritmo) e pela carteira
+    atendível (carteira_disponivel_faturar); o que já está vendido e não sai
+    pela porta é da expedição.
+    A apuração sustenta a decisão: a carteira tem 4 dias de meta com estoque
+    na mão e a agenda de carga tem 9 dias ociosos nos próximos 11 agendados.
+    Quando o dia não bate a meta, o que falta não é pedido.
     META DIÁRIA DE R$ 500.000 nas empresas 1, 2, 4 e 14 — recorte diferente do
     resto da matriz de propósito: só as que produzem e expedem (fora 3 NTR Log,
-    17 Hyak Group, 20 ACIUD).
-    É o mesmo número que limita a agenda de carga: a fábrica escoa na mesma
-    capacidade, e tratar meta de venda e capacidade de expedição como coisas
-    separadas é como a agenda acaba com dia de R$ 1,8 mi ao lado de dia de
-    R$ 37 mil.
+    17 Hyak Group, 20 ACIUD). É o mesmo número que limita a agenda de carga,
+    e é por isso que os dois KPIs têm o mesmo dono: a fábrica escoa numa
+    capacidade só.
     AFERIDO 22/09/26, últimos 63 dias úteis: média R$ 364.278/dia, mediana
     R$ 329.452, e apenas 11 dos 63 dias (17,5%) bateram os R$ 500 mil. A meta
     está 37% acima da média realizada — é escolha de gestão, não erro de
