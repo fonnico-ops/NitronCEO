@@ -21,31 +21,34 @@ Um indicador que não chega até `cobrar` não entra na matriz.
 23 KPIs. **18 cobram. 5 estão em sombra** — medem e aparecem no pulso, mas não
 notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 
-| KPI | Área | Dono | Estado |
-|---|---|---|---|
-| Ritmo de faturamento | Comercial | Diretoria Comercial | ✅ cobra |
-| Ritmo de entrada de pedidos | Comercial | Diretoria Comercial | ✅ cobra |
-| Pedidos esperando aprovação ou recusa | Comercial | Diretoria Comercial | ✅ cobra |
-| Produtos que pararam de vender | Comercial | Diretoria Comercial | ✅ cobra |
-| Ordens de carga montadas/dia | Logística | Logística | ✅ cobra |
-| Notas devolvidas | Qualidade | Qualidade | ✅ cobra |
-| Reentradas / refaturamento | Qualidade | Qualidade | ✅ cobra |
-| Injetoras paradas agora | Produção | Gerência de Produção | ✅ cobra |
-| Produtos com estoque curto | PCP | PCP | ✅ cobra |
-| O que o PCP precisa programar | PCP | PCP | ✅ cobra |
-| Ruptura de estoque na carteira | PCP | PCP | ✅ cobra |
-| Fluxo de caixa D0–D30 | Financeiro | Financeiro | ✅ cobra |
-| Recebíveis vencidos | Financeiro | Financeiro | ✅ cobra |
-| Grandes devedores | Financeiro | Financeiro | ✅ cobra |
-| Pedidos travados no crédito | Financeiro | Financeiro | ✅ cobra |
-| Naturezas de despesa fora do padrão | Financeiro | Financeiro | ✅ cobra |
-| Emissão da NTR Log contra o frete pago | Financeiro | Financeiro | ✅ cobra |
-| Emissão da Teak Brazil | Financeiro | Financeiro | ✅ cobra |
-| Performance por representante | Comercial | Diretoria Comercial | 🌓 sombra |
-| Performance por canal | Comercial | Diretoria Comercial | 🌓 sombra |
-| Entregas reagendadas | Logística | Logística | 🌓 sombra |
-| Tempo de setup das injetoras | Produção | Gerência de Produção | 🌓 sombra |
-| Despesa sobre faturamento | Financeiro | Financeiro | 🌓 sombra |
+| KPI | Dono | Estado |
+|---|---|---|
+| Ritmo de faturamento | Ricardo Miyabara | ✅ cobra |
+| Ritmo de entrada de pedidos | Ricardo Miyabara | ✅ cobra |
+| Pedidos esperando aprovação ou recusa | Ricardo Miyabara | ✅ cobra |
+| Produtos que pararam de vender | Ricardo Miyabara | ✅ cobra |
+| Ordens de carga montadas/dia | Expedição e Forla Silva | ✅ cobra |
+| Notas devolvidas | Alex Souza e Charles Silva | ✅ cobra |
+| Reentradas / refaturamento | Alex Souza e Charles Silva | ✅ cobra |
+| Injetoras paradas agora | Alex Souza e Charles Silva | ✅ cobra |
+| Produtos com estoque curto | Anderson Lourenço | ✅ cobra |
+| O que o PCP precisa programar | Anderson Lourenço | ✅ cobra |
+| Ruptura de estoque na carteira | Anderson Lourenço | ✅ cobra |
+| Fluxo de caixa D0–D30 | Claudia Ribeiro | ✅ cobra |
+| Recebíveis vencidos | Claudia Ribeiro | ✅ cobra |
+| Grandes devedores | Claudia Ribeiro | ✅ cobra |
+| Pedidos travados no crédito | Claudia Ribeiro | ✅ cobra |
+| Naturezas de despesa fora do padrão | Claudia Ribeiro | ✅ cobra |
+| Emissão da NTR Log contra o frete pago | Claudia Ribeiro | ✅ cobra |
+| Emissão da Teak Brazil | Claudia Ribeiro | ✅ cobra |
+| Performance por representante | Ricardo Miyabara | 🌓 sombra |
+| Performance por canal | Ricardo Miyabara | 🌓 sombra |
+| Entregas reagendadas | Expedição e Forla Silva | 🌓 sombra |
+| Tempo de setup das injetoras | Alex Souza e Charles Silva | 🌓 sombra |
+| Despesa sobre faturamento | Claudia Ribeiro | 🌓 sombra |
+
+**Cristiane Alves (Compras)** e **Projetos/Moldes** estão cadastrados e
+nenhum KPI aponta para eles ainda — ver "O que ainda falta decidir" abaixo.
 
 O porquê de cada sombra — e o que destrava cada uma — está em
 [`docs/achados-de-dados.md`](docs/achados-de-dados.md).
@@ -130,19 +133,43 @@ naquele dia:
 
 ---
 
-## O que é preciso decidir para os 8 ativos virarem cobrança de verdade
+## O que ainda falta decidir
 
-O motor funciona. O que falta é **acordo humano**, e é rápido:
+O motor funciona e os donos estão cadastrados. O que falta é **acordo
+humano**:
 
-1. **Preencher `config/pessoas.yaml`** — nomes e e-mails reais. Hoje está
-   `(preencher)`. Sem isso o motor cobra endereços genéricos.
-2. **Fixar a meta mensal de faturamento** (`NITRONCEO_META_MENSAL`). Hoje usa
+1. **A hierarquia de escalonamento.** Hoje tudo sobe direto para o CEO,
+   porque não sei quem é gerente de quem. Cada degrau intermediário que você
+   declarar em `escalonar_para` é um assunto operacional que para de chegar
+   em você.
+2. **O e-mail do Renato.** É o único que não veio na lista; está como
+   `renato@nitron.com.br`.
+3. **A concentração no financeiro.** 5 das 8 cobranças de hoje, e 4 das 5
+   críticas, caem na Claudia. Parte disso é de Compras por natureza — ver a
+   tabela abaixo.
+4. **A meta mensal de faturamento** (`NITRONCEO_META_MENSAL`). Hoje usa
    R$ 8 mi de placeholder.
-3. **Confirmar os limiares** de cada KPI com o dono da área. Estão calibrados
-   contra a distribuição observada, não contra o orçamento.
-4. **Registrar o app no Entra ID** com `Mail.Send`, `ChannelMessage.Send`,
+5. **Os limiares** de cada KPI, com o dono da área. Estão calibrados contra a
+   distribuição observada, não contra o orçamento.
+6. **O app no Entra ID**, com `Mail.Send`, `ChannelMessage.Send`,
    `Chat.Create`, `ChatMessage.Send`.
-5. **Agendar** conforme [`docs/governanca.md`](docs/governanca.md#rituais).
+7. **Os nomes das equipes e canais do Teams** em `pessoas.yaml`. O motor
+   procura equipe e canal por nome e falha se não achar.
+8. **Agendar** conforme [`docs/governanca.md`](docs/governanca.md#rituais).
+
+### Compras e Projetos/Moldes estão cadastrados e sem KPI
+
+Ambos entraram em `pessoas.yaml` mas nenhum indicador aponta para eles. Não
+inventei KPI por conta própria; o que eu proporia:
+
+| Papel | KPI candidato | De onde sairia |
+|---|---|---|
+| Compras — Cristiane | Naturezas de compra fora do padrão | fatiar `gastos_acima_media`: Matéria Prima, Embalagens, Injeção Terceirizada e Adiantamento a Fornecedores são de Compras; Empréstimos e Dividendos ficam no financeiro |
+| Compras — Cristiane | MP que trava programação do PCP | cruzar `demanda_alta_estoque_baixo` com a data de chegada da matéria-prima |
+| Projetos/Moldes | Molde parado / manutenção | `AD_PARADAMAQUINA` tinha os motivos `MM` (Manutenção de Molde) e `QM` (Queima de Resistência) — a mesma tabela morta que impede o KPI de setup |
+
+O terceiro depende da mesma instrumentação que o KPI de setup: enquanto a
+parada não voltar a ser gravada, Projetos/Moldes não tem o que cobrar.
 
 ---
 

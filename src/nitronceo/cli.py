@@ -58,7 +58,7 @@ def cmd_cobrar(args) -> int:
             return 0
         for c in cobrancas:
             papel = motor.cfg.papel(c.destinatario)
-            print(f"[{c.acao.id}] rodada {c.rodada} -> {papel.nome}: {c.motivo}")
+            print(f"[{c.acao.id}] rodada {c.rodada} -> {papel.quem}: {c.motivo}")
         return 0
     finally:
         repo.fechar()
@@ -76,7 +76,7 @@ def cmd_pendentes(args) -> int:
             papel = cfg.papel(acao.dono)
             atraso = "VENCIDA" if acao.vencida else f"{acao.horas_restantes():.0f}h"
             print(
-                f"[{acao.id}] {acao.nivel.value:9} {papel.nome:22} {atraso:>9}  "
+                f"[{acao.id}] {acao.nivel.value:9} {papel.quem:26} {atraso:>9}  "
                 f"cobranças: {repo.cobrancas_de(acao.id)}  {acao.titulo}"
             )
         return 0
@@ -179,7 +179,7 @@ def cmd_validar(args) -> int:  # noqa: ARG001
         marca = "ativo " if kpi["modo"] == "ativo" else "sombra"
         print(
             f"ok    {kpi['id']:28} {marca}  {kpi['metrica']:24} "
-            f"-> {papel.nome}  ({len(sql)} chars)"
+            f"-> {papel.quem}  ({len(sql)} chars)"
         )
 
     ativos = sum(1 for k in cfg.matriz["kpis"] if k["modo"] == "ativo")

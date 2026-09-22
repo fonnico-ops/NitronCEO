@@ -83,7 +83,7 @@ def proxima_cobranca(
             rodada=1,
             destinatario=gestor,
             motivo=(
-                f"{dono.nome} não respondeu em "
+                f"{dono.quem} não respondeu em "
                 f"{_horas(agora - acao.criada_em)}. Escalando."
             ),
             urgente=True,
@@ -101,7 +101,7 @@ def proxima_cobranca(
         rodada=rodada,
         destinatario=ceo,
         motivo=(
-            f"Sem resposta de {dono.nome} nem do gestor em "
+            f"Sem resposta de {dono.quem} nem do gestor em "
             f"{_horas(agora - acao.criada_em)}. Isto virou pauta sua."
         ),
         urgente=True,

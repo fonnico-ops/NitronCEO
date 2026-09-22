@@ -31,12 +31,17 @@ from .acoes import Acao, Estado, formatar
 from .avaliador import Nivel, Sinal
 from .config import Config
 
+# Ordem em que as áreas aparecem no painel. Uma área sem KPI não é
+# renderizada — `compras` e `projetos` estão aqui para o dia em que ganharem
+# indicador, não para ocupar espaço vazio.
 AREAS = [
     ("comercial", "Comercial"),
-    ("logistica", "Logística"),
+    ("logistica", "Faturamento / Expedição"),
     ("qualidade", "Qualidade"),
     ("producao", "Produção"),
     ("pcp", "PCP"),
+    ("compras", "Compras"),
+    ("projetos", "Projetos / Moldes"),
     ("financeiro", "Financeiro"),
 ]
 
@@ -84,7 +89,7 @@ def _item(sinal: Sinal, por_id: dict[str, Any], cfg: Config) -> dict[str, str]:
         "titulo": sinal.titulo,
         "valor": _valor(sinal),
         "area": ROTULO_AREA.get(kpi["area"], kpi["area"]),
-        "dono": cfg.papel(kpi["dono"]).nome,
+        "dono": cfg.papel(kpi["dono"]).quem,
         "nivel": sinal.nivel.value,
         "modo": sinal.modo,
     }
@@ -101,7 +106,7 @@ def _etapas(sinais: list[Sinal], acoes: list[Acao], por_id: dict[str, Any],
             "titulo": a.titulo,
             "valor": f"prazo {a.prazo:%d/%m %H:%M}",
             "area": ROTULO_AREA.get(por_id[a.kpi_id]["area"], ""),
-            "dono": cfg.papel(a.dono).nome,
+            "dono": cfg.papel(a.dono).quem,
             "nivel": a.nivel.value,
             "modo": "ativo",
         }
@@ -208,7 +213,7 @@ def _linha_kpi(sinal: Sinal, kpi: dict[str, Any], cfg: Config,
         </div>
         <div class="kpi__base">
           <span class="kpi__estado">{_e(ROTULO_NIVEL[sinal.nivel])}</span>
-          <span class="kpi__dono">{_e(papel.nome)}</span>
+          <span class="kpi__dono">{_e(papel.quem)}</span>
           {marca}
         </div>
         {detalhe_html}
@@ -246,7 +251,7 @@ def _cobranca(acao: Acao, kpi: dict[str, Any], cfg: Config) -> str:
         <span class="cob__seta" aria-hidden="true">▾</span>
         <span class="cob__meta">
           <span class="tag tag--{acao.nivel.value}">{_e(ROTULO_NIVEL[acao.nivel])}</span>
-          <span>{_e(papel.nome)}</span>
+          <span>{_e(papel.quem)}</span>
           <span class="mono">prazo {acao.prazo:%d/%m %H:%M}</span>
           <span>{_e(escada)}</span>
           <span class="mono" data-contador="{_e(acao.id)}"></span>
@@ -275,6 +280,42 @@ def _cobranca(acao: Acao, kpi: dict[str, Any], cfg: Config) -> str:
         </div>
       </div>
     </article>"""
+
+
+def _carga(acoes: list[Acao], cfg: Config) -> str:
+    """Quantas cobranças cada papel está segurando.
+
+    Existe porque concentração é um problema de gestão que não aparece em
+    nenhum KPI: se uma pessoa segura seis das oito cobranças, o gargalo não é
+    o indicador — é a agenda dela.
+    """
+    if not acoes:
+        return ""
+    por_papel: dict[str, list[Acao]] = {}
+    for a in acoes:
+        por_papel.setdefault(a.dono, []).append(a)
+
+    maior = max(len(v) for v in por_papel.values())
+    linhas = []
+    for chave, lista in sorted(por_papel.items(), key=lambda kv: -len(kv[1])):
+        papel = cfg.papel(chave)
+        criticas = sum(1 for a in lista if a.nivel is Nivel.CRITICO)
+        pct = len(lista) / maior * 100
+        linhas.append(
+            f'<li class="carga__linha">'
+            f'<span class="carga__quem">{_e(papel.quem)}</span>'
+            f'<span class="carga__trilho"><span class="carga__fill" '
+            f'style="width:{pct:.1f}%"></span></span>'
+            f'<span class="carga__n mono">{len(lista)}'
+            f'{f" · {criticas} crítica" + ("s" if criticas > 1 else "") if criticas else ""}'
+            f"</span></li>"
+        )
+    return (
+        '<p class="secao__nota">Quem está segurando as cobranças agora. '
+        'Concentração não aparece em nenhum indicador, e é problema de gestão '
+        'do mesmo jeito.</p>'
+        f'<ul class="carga">{"".join(linhas)}</ul>'
+    )
 
 
 def gerar(cfg: Config, sinais: list[Sinal], acoes: list[Acao],
@@ -355,7 +396,7 @@ def gerar(cfg: Config, sinais: list[Sinal], acoes: list[Acao],
     dados = {
         "etapas": {et.chave: {"nome": et.nome, "explica": et.explica,
                               "itens": et.itens} for et in etapas},
-        "acoes": {a.id: {"titulo": a.titulo, "dono": cfg.papel(a.dono).nome}
+        "acoes": {a.id: {"titulo": a.titulo, "dono": cfg.papel(a.dono).quem}
                   for a in acoes},
     }
 
@@ -648,7 +689,22 @@ h1,h2,h3 {{ font-family:"Archivo","Segoe UI",system-ui,sans-serif;
 .resp__check {{ display:inline-flex; align-items:center; gap:6px;
   font-size:12.5px; color:var(--ink-2); cursor:pointer; }}
 .resp__aviso {{ font-size:12px; color:var(--muted); margin:8px 0 0; }}
-.resp__erro {{ font-size:12.5px; color:var(--crimson); margin:0; }}</style>
+.resp__erro {{ font-size:12.5px; color:var(--crimson); margin:0; }}
+
+/* --- carga por dono --- */
+.carga {{ list-style:none; margin:0; padding:0; display:grid; gap:7px; }}
+.carga__linha {{ display:grid; grid-template-columns:minmax(120px,190px) 1fr auto;
+  align-items:center; gap:12px; }}
+.carga__quem {{ font-size:13px; }}
+.carga__trilho {{ background:var(--surface-2); height:14px; border-radius:2px;
+  border:1px solid var(--hair); }}
+.carga__fill {{ display:block; height:100%; background:var(--accent);
+  border-radius:0 1px 1px 0; }}
+.carga__n {{ font-size:12px; color:var(--ink-2); white-space:nowrap; }}
+@media (max-width:520px) {{
+  .carga__linha {{ grid-template-columns:1fr auto; }}
+  .carga__trilho {{ grid-column:1/-1; }}
+}}</style>
 
 <div class="pagina">
   <header class="topo">
@@ -696,6 +752,11 @@ h1,h2,h3 {{ font-family:"Archivo","Segoe UI",system-ui,sans-serif;
   <section class="secao">
     <h2 class="secao__tit">Onde está o dinheiro parado</h2>
     <div class="graficos">{"".join(graficos)}</div>
+  </section>
+
+  <section class="secao">
+    <h2 class="secao__tit">Carga por dono</h2>
+    {_carga(acoes, cfg)}
   </section>
 
   <section class="secao">

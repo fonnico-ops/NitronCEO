@@ -1,59 +1,97 @@
 # Quem responde por quê. O motor não sabe cobrar ninguém sem este arquivo.
 #
-# `nome` traz o PAPEL, que já é conhecido. O que falta preencher é a pessoa
-# e o endereço real — troque o nome do papel pelo nome de quem responde e o
-# e-mail genérico pelo individual, senão a cobrança chega numa caixa coletiva
-# e ninguém se sente o dono.
-#
-# `teams_id`  -> e-mail/UPN do Microsoft 365 (o mesmo usado no Teams).
+# `pessoas`  -> uma ou mais pessoas por papel. Cada uma recebe a cobrança no
+#               Teams e, quando o KPI pede e-mail, também na caixa dela.
+#               Dois nomes num papel significa que os DOIS são cobrados, não
+#               que um cobre o outro: cobrança sem dono único vira cobrança de
+#               ninguém, então o papel é que é o dono, e ambos respondem por ele.
 # `escalonar_para` -> para quem a cobrança sobe quando o SLA estoura.
-# O CEO é sempre o último degrau: se chegou nele, o processo falhou antes.
+#               Hoje tudo sobe direto para o CEO porque a hierarquia
+#               intermediária não foi declarada. Se houver gerente entre a
+#               pessoa e o Renato, aponte aqui — o degrau a mais é o que evita
+#               que assunto operacional chegue no CEO.
+#
+# O `email` de cada pessoa é o mesmo usado como UPN do Microsoft 365 (Teams).
 
 papeis:
   ceo:
-    nome: Renato
-    teams_id: renato@nitron.com.br
-    email: renato@nitron.com.br
+    nome: CEO
     escalonar_para: null
-
-  diretor_comercial:
-    nome: Diretoria Comercial
-    teams_id: comercial@nitron.com.br
-    email: comercial@nitron.com.br
-    escalonar_para: ceo
-
-  gerente_producao:
-    nome: Gerência de Produção
-    teams_id: producao@nitron.com.br
-    email: producao@nitron.com.br
-    escalonar_para: ceo
-
-  pcp:
-    nome: PCP
-    teams_id: pcp@nitron.com.br
-    email: pcp@nitron.com.br
-    escalonar_para: gerente_producao
-
-  logistica:
-    nome: Logística
-    teams_id: expedicao@nitron.com.br
-    email: expedicao@nitron.com.br
-    escalonar_para: ceo
+    pessoas:
+      # CONFERIR: é o único endereço que não veio na lista. Troque se o
+      # corporativo do Renato for outro.
+      - nome: Renato
+        email: renato@nitron.com.br
 
   financeiro:
     nome: Financeiro
-    teams_id: financeiro@nitron.com.br
-    email: financeiro@nitron.com.br
     escalonar_para: ceo
+    pessoas:
+      - nome: Claudia Ribeiro
+        email: claudia.ribeiro@nitron.com.br
+
+  compras:
+    nome: Compras
+    escalonar_para: ceo
+    pessoas:
+      - nome: Cristiane Alves
+        email: cristiane.alves@nitron.com.br
+
+  diretor_comercial:
+    nome: Comercial
+    escalonar_para: ceo
+    pessoas:
+      - nome: Ricardo Miyabara
+        email: ricardo.miyabara@nitron.com.br
+
+  pcp:
+    nome: PCP
+    escalonar_para: ceo
+    pessoas:
+      - nome: Anderson Lourenço
+        email: anderson.lourenco@nitron.com.br
+
+  logistica:
+    nome: Faturamento / Expedição / Logística
+    escalonar_para: ceo
+    pessoas:
+      - nome: Expedição
+        email: expedicao2@nitron.com.br
+      - nome: Forla Silva
+        email: forla.silva@nitron.com.br
+
+  gerente_producao:
+    nome: Produção
+    escalonar_para: ceo
+    pessoas:
+      - nome: Alex Souza
+        email: alex.souza@nitron.com.br
+      - nome: Charles Silva
+        email: charles.silva@nitron.com.br
 
   qualidade:
     nome: Qualidade
-    teams_id: qualidade@nitron.com.br
-    email: qualidade@nitron.com.br
-    escalonar_para: gerente_producao
+    escalonar_para: ceo
+    pessoas:
+      # Mesma dupla da produção: na Nitron produção e qualidade respondem
+      # juntas. São papéis separados de propósito — KPIs diferentes, cobranças
+      # diferentes — ainda que as pessoas coincidam hoje.
+      - nome: Alex Souza
+        email: alex.souza@nitron.com.br
+      - nome: Charles Silva
+        email: charles.silva@nitron.com.br
+
+  projetos:
+    nome: Projetos / Moldes
+    escalonar_para: ceo
+    pessoas:
+      - nome: Projetos
+        email: projetos3@nitron.com.br
 
 canais_teams:
-  # Canal de time (mensagem em canal) para sinais que são do grupo, não de uma pessoa.
+  # Canal de time, para o sinal que é do grupo e não de uma pessoa.
+  # Confira os nomes exatos do Teams antes de ativar o envio — o motor procura
+  # a equipe e o canal por nome e falha se não achar.
   comercial:
     team: "Comercial Nitron"
     canal: "Geral"

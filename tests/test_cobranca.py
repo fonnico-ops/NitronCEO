@@ -11,12 +11,13 @@ from nitronceo.config import Config  # noqa: E402
 
 PESSOAS = {
     "papeis": {
-        "ceo": {"nome": "Renato", "teams_id": "r@x", "email": "r@x",
-                "escalonar_para": None},
-        "gerente": {"nome": "Gerente", "teams_id": "g@x", "email": "g@x",
-                    "escalonar_para": "ceo"},
-        "pcp": {"nome": "PCP", "teams_id": "p@x", "email": "p@x",
-                "escalonar_para": "gerente"},
+        "ceo": {"nome": "CEO", "escalonar_para": None,
+                "pessoas": [{"nome": "Renato", "email": "r@x"}]},
+        "gerente": {"nome": "Gerência", "escalonar_para": "ceo",
+                    "pessoas": [{"nome": "Gerente", "email": "g@x"}]},
+        "pcp": {"nome": "PCP", "escalonar_para": "gerente",
+                "pessoas": [{"nome": "Ana", "email": "a@x"},
+                            {"nome": "Bruno", "email": "b@x"}]},
     }
 }
 CFG = Config(matriz={"kpis": []}, pessoas=PESSOAS)
@@ -42,6 +43,15 @@ def test_primeira_rodada_volta_para_o_dono():
     c = proxima_cobranca(_acao(), CFG, PRAZO + timedelta(minutes=1))
     assert c.destinatario == "pcp"
     assert c.escalada is False
+    assert "Ana e Bruno" not in c.motivo   # a 1ª rodada fala com o dono, não sobre ele
+
+
+def test_papel_com_duas_pessoas_cobra_as_duas():
+    # O papel é o dono, não o indivíduo: dividir a cobrança entre os dois a
+    # transformaria em cobrança de ninguém.
+    pcp = CFG.papel("pcp")
+    assert pcp.emails == ["a@x", "b@x"]
+    assert pcp.quem == "Ana e Bruno"
 
 
 def test_segunda_rodada_sobe_para_o_gestor():
@@ -52,6 +62,7 @@ def test_segunda_rodada_sobe_para_o_gestor():
     assert c.destinatario == "gerente"
     assert c.escalada is True
     assert c.urgente is True
+    assert "Ana e Bruno" in c.motivo       # a escalada nomeia quem não respondeu
 
 
 def test_terceira_rodada_chega_no_ceo():

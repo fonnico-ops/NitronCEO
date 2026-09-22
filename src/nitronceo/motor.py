@@ -105,7 +105,7 @@ class Motor:
             self.repo.atualizar_estado(acao.id, novo_estado, acao.escalonamentos)
             self.repo.registrar_cobranca(
                 acao.id, cobranca.rodada,
-                self.cfg.papel(cobranca.destinatario).email,
+                ", ".join(self.cfg.papel(cobranca.destinatario).emails),
                 "teams", cobranca.motivo,
             )
             disparadas.append(cobranca)
@@ -123,11 +123,11 @@ class Motor:
         msg = Mensagem(
             assunto=f"{ICONE[sinal.nivel]} {acao.titulo}",
             corpo_md=self._corpo_acao(acao, sinal, kpi, reincidencia),
-            destinatarios=[papel.teams_id],
+            destinatarios=papel.emails,
             urgente=sinal.nivel is Nivel.CRITICO,
             canal_equipe=self.cfg.canal_teams(kpi.get("canal_teams")),
         )
-        self._despachar(canais, msg, papel.email)
+        self._despachar(canais, msg, papel.emails)
 
     def _notificar_cobranca(self, cobranca: Cobranca) -> None:
         papel = self.cfg.papel(cobranca.destinatario)
@@ -152,11 +152,11 @@ class Motor:
         msg = Mensagem(
             assunto=f"⏰ {prefixo}: {acao.titulo}",
             corpo_md="\n".join(corpo),
-            destinatarios=[papel.teams_id],
+            destinatarios=papel.emails,
             urgente=cobranca.urgente,
         )
         canais = ["teams", "email"] if cobranca.escalada else ["teams"]
-        self._despachar(canais, msg, papel.email)
+        self._despachar(canais, msg, papel.emails)
 
     def _corpo_acao(
         self, acao: Acao, sinal: Sinal, kpi: dict[str, Any], reincidencia: int
@@ -198,17 +198,21 @@ class Motor:
         ]
         return "\n".join(linhas)
 
-    def _despachar(self, canais: list[str], msg: Mensagem, email: str) -> None:
+    def _despachar(
+        self, canais: list[str], msg: Mensagem, emails: list[str]
+    ) -> None:
         for canal in canais:
             notificador = self.notificadores.get(canal)
             if not notificador:
                 continue
             alvo = msg
             if canal == "email":
+                # O e-mail vai só para as pessoas; o canal de equipe é
+                # exclusividade do Teams.
                 alvo = Mensagem(
                     assunto=msg.assunto,
                     corpo_md=msg.corpo_md,
-                    destinatarios=[email],
+                    destinatarios=emails,
                     urgente=msg.urgente,
                 )
             notificador.enviar(alvo)
@@ -237,7 +241,7 @@ def pulso(rodada: Rodada, cfg: Config) -> str:
         for acao in rodada.acoes_novas:
             papel = cfg.papel(acao.dono)
             linhas.append(
-                f"- [{acao.id}] {acao.titulo} — {papel.nome} "
+                f"- [{acao.id}] {acao.titulo} — {papel.quem} "
                 f"(até {acao.prazo:%d/%m %H:%M})"
             )
 
@@ -246,7 +250,7 @@ def pulso(rodada: Rodada, cfg: Config) -> str:
         for c in rodada.cobrancas:
             papel = cfg.papel(c.destinatario)
             tipo = "escalada" if c.escalada else "lembrete"
-            linhas.append(f"- [{c.acao.id}] {tipo} para {papel.nome}: {c.motivo}")
+            linhas.append(f"- [{c.acao.id}] {tipo} para {papel.quem}: {c.motivo}")
 
     if rodada.falhas:
         linhas += ["", "### KPIs que não mediram"]

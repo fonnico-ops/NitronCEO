@@ -44,6 +44,22 @@ Hoje, 5 dos 13 estão em sombra. Os motivos de cada um estão em
 
 ---
 
+## Um papel pode ser duas pessoas
+
+Faturamento/Expedição são duas (Expedição e Forla Silva); Produção e
+Qualidade são as mesmas duas (Alex Souza e Charles Silva).
+
+Quando um papel tem duas pessoas, **as duas recebem a mesma cobrança**. O
+motor não escolhe uma nem divide o pedido entre elas: o dono é o papel, e
+dividir a cobrança a transformaria em cobrança de ninguém.
+
+Produção e Qualidade continuam papéis separados mesmo apontando para as
+mesmas pessoas hoje. São KPIs diferentes, prazos diferentes e conversas
+diferentes — e se amanhã a qualidade ganhar dono próprio, basta trocar o
+endereço.
+
+---
+
 ## A escada de cobrança
 
 ```
@@ -54,6 +70,11 @@ ação aberta
    ├─ prazo × 2                  → escala ao CEO
    └─ depois disso               → para de cobrar; vira pauta de reunião
 ```
+
+Hoje todos os papéis escalam direto para o CEO, porque a hierarquia
+intermediária não foi declarada. Isso significa que a segunda rodada já chega
+no Renato. Cada `escalonar_para` intermediário que for preenchido é um
+assunto operacional a menos na mesa dele.
 
 **Por que para na terceira rodada:** cobrança que se repete para sempre deixa
 de ser cobrança. Se três avisos e duas escaladas não produziram resposta, o

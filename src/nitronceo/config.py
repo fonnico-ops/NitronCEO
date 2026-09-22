@@ -13,12 +13,32 @@ RAIZ = Path(__file__).resolve().parents[2]
 
 
 @dataclass
+class Pessoa:
+    nome: str
+    email: str
+
+
+@dataclass
 class Papel:
+    """Um dono de cobrança. Pode ser mais de uma pessoa.
+
+    Quando são duas, as duas recebem — o papel é o dono, não o indivíduo.
+    Dividir a cobrança entre elas seria transformá-la em cobrança de ninguém.
+    """
+
     chave: str
     nome: str
-    teams_id: str
-    email: str
+    pessoas: list[Pessoa]
     escalonar_para: str | None = None
+
+    @property
+    def emails(self) -> list[str]:
+        return [p.email for p in self.pessoas]
+
+    @property
+    def quem(self) -> str:
+        """Os nomes, para aparecer na mensagem e no painel."""
+        return " e ".join(p.nome for p in self.pessoas)
 
 
 @dataclass
@@ -30,7 +50,12 @@ class Config:
     @property
     def papeis(self) -> dict[str, Papel]:
         return {
-            chave: Papel(chave=chave, **dados)
+            chave: Papel(
+                chave=chave,
+                nome=dados["nome"],
+                pessoas=[Pessoa(**p) for p in dados["pessoas"]],
+                escalonar_para=dados.get("escalonar_para"),
+            )
             for chave, dados in self.pessoas["papeis"].items()
         }
 
@@ -113,6 +138,13 @@ def _params_padrao(matriz: dict[str, Any]) -> dict[str, Any]:
 
 def _validar(cfg: Config) -> None:
     """Falha cedo. Matriz com dono inexistente só aparece na hora de cobrar."""
+    for chave, papel in cfg.papeis.items():
+        if not papel.pessoas:
+            raise ValueError(f"Papel '{chave}' não tem ninguém para cobrar")
+        alvo = papel.escalonar_para
+        if alvo and alvo not in cfg.papeis:
+            raise ValueError(f"Papel '{chave}' escala para '{alvo}', que não existe")
+
     vistos: set[str] = set()
     for kpi in cfg.matriz["kpis"]:
         kid = kpi["id"]
