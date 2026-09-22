@@ -523,3 +523,66 @@ meta**. Só R$ 217.587 sem estoque.
 Isso fecha o raciocínio: com 4 dias de meta na mão e a capacidade ociosa em 9
 dos próximos 11 dias agendados, **quando o dia não bate R$ 500 mil o gargalo
 não é falta de pedido nem falta de estoque — é a distribuição da agenda.**
+
+
+---
+
+## 18. Capital parado e capacidade perdida
+
+### R$ 607 mil em produto inativo — e 83% é um item só
+
+57 produtos com `TGFPRO.ATIVO='N'` ainda têm saldo: 304.723 unidades,
+R$ 607.635,72 a custo médio. Mas a distribuição é o que importa:
+
+| | Valor | Produtos |
+|---|---|---|
+| **CESTO ORG. VERSÁTIL LAVANDERIA-FSC** | **R$ 502.074** | 1 (253.036 un, zero venda em 180d) |
+| Demais sem venda em 180 dias | R$ 37.883 | 42 |
+| Ainda vendem (liquidáveis com desconto) | R$ 67.679 | 14 |
+
+Não são 57 produtos para resolver — é **um produto e 56 acompanhantes**. A
+ação separa as duas conversas porque são decisões diferentes: o que ainda
+vende sai com desconto; o que não vendeu nada é baixa, não promoção.
+
+8 dos 57 não têm custo cadastrado e entram com zero, então o total real é um
+pouco maior.
+
+### Um item com 78 milhões de unidades em estoque
+
+Ao valorizar o estoque ATIVO o total deu **R$ 445 milhões**, o que não é
+plausível para a operação. A causa: `CODPROD 6639` ("POTE ACOPLADO COM COPO
+MEDIDOR") aparece com **78.067.352 unidades**, R$ 419 mi sozinho. Sem ele, o
+estoque ativo fica em ~R$ 26 mi, que é a ordem de grandeza esperada.
+
+Isso não afeta o KPI de inativos (o 6639 está ativo), mas contamina qualquer
+valorização de estoque e merece correção no cadastro.
+
+### Ciclo de injeção 28% acima do padrão
+
+`AD_TGPAPO.CICLOREAL` contra `CICLOBASE`, 30 dias, 276.713 apontamentos
+válidos:
+
+- **Mediana em 128,5% do ciclo base** — metade da produção roda 28% mais lenta
+- 146.881 apontamentos acima de +25%; 63.020 acima de +50%
+- **10 das 45 injetoras** com mediana acima de 140%
+
+| Injetora | Base | Real | |
+|---|---|---|---|
+| 7 | 18,0s | 32,4s | **178%** |
+| 22 | 18,8s | 30,6s | 162% |
+| 2 | 19,0s | 34,3s | 160% |
+| 44 | 20,0s | 25,7s | 155% |
+| 9 | 16,8s | 27,8s | 154% |
+
+Ciclo alto é perda **silenciosa**: a máquina está ligada, o apontamento
+acontece, ninguém reclama — e a fábrica entrega menos peça por hora do que a
+programação assumiu. Diferente da parada, que salta aos olhos.
+
+Cruzamento que vale a reunião: a **INJETORA 19** está a 140% de ciclo **e** é
+a pior em tempo de setup (mediana de 496 min em 15 trocas). Mesma máquina,
+dois problemas.
+
+**Ressalva de leitura:** ciclo base alto demais no cadastro esconde o
+problema; base baixa demais inventa um. 14.756 apontamentos sequer têm
+`CICLOBASE` e ficam fora da conta. Máquina muito fora da curva pede
+conferência do cadastro antes da cobrança — está escrito nos passos da ação.

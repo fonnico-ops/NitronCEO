@@ -18,7 +18,7 @@ Um indicador que não chega até `cobrar` não entra na matriz.
 
 ## Estado hoje
 
-30 KPIs. **26 cobram. 4 estão em sombra** — medem e aparecem no pulso, mas não
+32 KPIs. **28 cobram. 4 estão em sombra** — medem e aparecem no pulso, mas não
 notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 
 | KPI | Dono | Estado |
@@ -26,6 +26,7 @@ notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 | Emissão da Teak Brazil | Cristiane Alves | ✅ cobra |
 | Gastos de compra fora do padrão | Cristiane Alves | ✅ cobra |
 | Carteira disponível para faturar | Ricardo Miyabara | ✅ cobra |
+| Estoque de produto inativo | Ricardo Miyabara | ✅ cobra |
 | Pedidos esperando aprovação ou recusa | Ricardo Miyabara | ✅ cobra |
 | Produtos que pararam de vender | Ricardo Miyabara | ✅ cobra |
 | Ritmo de entrada de pedidos | Ricardo Miyabara | ✅ cobra |
@@ -34,6 +35,7 @@ notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 | Grandes devedores | Claudia Ribeiro | ✅ cobra |
 | Pedidos travados no crédito | Claudia Ribeiro | ✅ cobra |
 | Recebíveis vencidos | Claudia Ribeiro | ✅ cobra |
+| Ciclo de injeção acima do padrão | Alex Souza e Charles Silva | ✅ cobra |
 | Injetoras paradas agora | Alex Souza e Charles Silva | ✅ cobra |
 | Paradas sem motivo apontado | Alex Souza e Charles Silva | ✅ cobra |
 | Tempo de setup das injetoras | Alex Souza e Charles Silva | ✅ cobra |

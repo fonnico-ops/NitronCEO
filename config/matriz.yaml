@@ -1101,3 +1101,88 @@ kpis:
     ação; o do trimestre responde se a internalização está acontecendo.
     PARA MELHORAR: se o apontamento passar a usar LOCALINJECAO de verdade, dá
     para medir molde a molde em vez de só o custo agregado.
+
+# ---------------------------------------------------------------------------
+# CAPITAL PARADO E CAPACIDADE PERDIDA
+# ---------------------------------------------------------------------------
+
+- id: estoque_inativo
+  titulo: Estoque de produto inativo
+  pergunta: Quanto de capital está parado em produto que saiu de linha?
+  area: comercial
+  sql: sql/estoque_inativo.sql
+  frequencia: semanal
+  dia_semana: seg
+  horario: "08:00"
+  metrica: VLR_CUSTO
+  unidade: reais
+  avaliacao: { tipo: limite_superior, verde: 250000, amarelo: 600000, vermelho: 1200000 }
+  dono: diretor_comercial
+  canal_teams: comercial
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "R$ {valor} parados em produto inativo"
+    passos:
+      - "Os que AINDA VENDEM: qual o desconto e para quem, com data de campanha."
+      - "Os SEM VENDA em 180 dias: liquidação, doação ou baixa? Cada um precisa de destino."
+      - "Traga o valor que espera recuperar — liquidar a qualquer preço também é perda."
+      - "Enquanto isso não sai, está ocupando endereço no CD e travando giro."
+    sla_resposta_horas: 48
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Produto com TGFPRO.ATIVO='N' que ainda tem saldo é dinheiro imobilizado em
+    algo que a empresa decidiu não vender mais. É diferente de suspenso:
+    ATIVO='N' são 1.353 produtos que saíram do cadastro; AD_AG_SUSPENSO='S'
+    são 652 que podem voltar (ver suspensos_para_reativar). Cruzam em 79.
+    AFERIDO 22/09/26: 57 produtos inativos com saldo, 304.723 unidades,
+    R$ 607.635,72 a custo médio. 8 sem custo cadastrado entram com zero, então
+    o valor real é um pouco maior.
+    A coluna que separa as duas conversas: inativo que AINDA VENDEU nos
+    últimos 180 dias sai com desconto; o que não vendeu nada é decisão de
+    baixa, não de promoção. A ação pede as duas listas separadas.
+    CUSTO: TGFCUS.CUSMED da última DTATUAL por produto. A tabela é histórica
+    (chave com DTATUAL), então sem KEEP DENSE_RANK LAST soma custo de várias
+    datas.
+
+- id: ciclos_altos
+  titulo: Ciclo de injeção acima do padrão
+  pergunta: Quanto a injeção está rodando mais devagar do que deveria?
+  area: producao
+  sql: sql/ciclos_altos.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: PCT_MEDIANO
+  unidade: percentual
+  avaliacao: { tipo: limite_superior, verde: 110, amarelo: 125, vermelho: 140 }
+  dono: gerente_producao
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "Ciclo mediano em {valor}% do padrão de cadastro"
+    passos:
+      - "Das injetoras da lista: é a máquina, o molde, o material ou quem opera?"
+      - "Antes de cobrar o turno, confirme se o ciclo base do cadastro está certo."
+      - "A INJETORA 19 é a pior em setup E está entre as piores em ciclo — comece por ela."
+      - "Ciclo 28% mais lento é ~22% menos peça por hora. Diga quanto isso custa na programação."
+    sla_resposta_horas: 8
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    AD_TGPAPO.CICLOREAL (tempo real por tiro) contra CICLOBASE (padrão do par
+    produto x injetora). A skill do PCP é explícita: CICLOREAL é a régua
+    confiável de ritmo, e NÃO se usa o tempo de parede de AD_APONTACICLO, que
+    varia 12x para o mesmo par.
+    Ciclo alto é perda de capacidade SILENCIOSA: a máquina está ligada, o
+    apontamento acontece, ninguém reclama — e a fábrica entrega menos peça por
+    hora do que o plano assumiu. Diferente da parada, que salta aos olhos.
+    AFERIDO 22/09/26 (30 dias, 291.427 apontamentos): MEDIANA em 128,5% do
+    ciclo base. 146.857 apontamentos acima de +25% e 63.007 acima de +50%.
+    Piores: INJETORA 7 (18,0s -> 32,4s, 178%), INJETORA 22 (162%), INJETORA 2
+    (160%), INJETORA 44 (155%), INJETORA 9 (154%).
+    14.756 apontamentos sem CICLOBASE cadastrado ficam fora do cálculo.
+    Usa MEDIANA por máquina com piso de 500 apontamentos: média se move com um
+    tiro anômalo, e máquina com 20 apontamentos no mês não sustenta conclusão.
+    CUIDADO AO LER: base alta demais no cadastro esconde o problema e base
+    baixa demais inventa um. Máquina muito fora da curva pede conferência do
+    cadastro antes da cobrança.
