@@ -1,0 +1,425 @@
+# =============================================================================
+# MATRIZ DE COBRANÇA DO CEO — Grupo Nitron
+# =============================================================================
+# Cada bloco responde a quatro perguntas, nesta ordem. Um KPI que não responde
+# às quatro não entra na matriz — vira dashboard, e dashboard ninguém cobra.
+#
+#   1. O QUE eu meço?      -> sql + metrica
+#   2. QUANDO é problema?  -> avaliacao (verde / amarelo / vermelho)
+#   3. QUEM resolve?       -> dono (papel de config/pessoas.yaml)
+#   4. O QUE ele faz?      -> acao.passos + acao.sla_resposta_horas
+#
+# `status_dado` diz o quanto confiar no número HOJE:
+#   validado  -> query rodada em produção, resultado conferido (22/09/2026)
+#   calibrar  -> query roda, mas o limiar precisa de acordo com a área antes
+#                de virar cobrança. Até lá o motor só observa (`modo: sombra`).
+#
+# `modo`: ativo  -> avalia, notifica e cobra
+#         sombra -> avalia e registra, NÃO notifica ninguém
+# =============================================================================
+
+versao: 1
+recorte_padrao:
+  # "Nitron" hoje = 1,2,3,4,14,17,20. Gadgets antigos usam 1,2,4,14 — se um
+  # número não bater com um gadget, confira o recorte antes de procurar bug.
+  codemp: [1, 2, 3, 4, 14, 17, 20]
+  excluir_intercompany: true
+
+kpis:
+
+# ---------------------------------------------------------------------------
+# COMERCIAL
+# ---------------------------------------------------------------------------
+
+- id: faturamento_ritmo
+  titulo: Ritmo de faturamento
+  pergunta: No ritmo de hoje, fecho o mês na meta?
+  area: comercial
+  sql: sql/faturamento_ritmo.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: PCT_PROJECAO_META
+  unidade: percentual
+  avaliacao:
+    tipo: limite_inferior      # quanto menor, pior
+    verde: 100
+    amarelo: 92
+    vermelho: 85
+  dono: diretor_comercial
+  canal_teams: comercial
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "Ritmo de faturamento projeta {valor}% da meta"
+    passos:
+      - "Diga o que muda na semana: quais pedidos entram e de quem."
+      - "Aponte o gargalo real — carteira, estoque ou expedição — com número."
+      - "Se o gargalo não é comercial, nomeie a área e eu cobro lá."
+    sla_resposta_horas: 4
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Âncora ATUALCOM='C' + AD_INSEREDASH='S' (não TIPMOV='V' — isso descarta a
+    TOP 3110, que é faturamento real). Validado 22/09/26: set/26 MTD
+    R$ 6.266.686,56 em 4.869 notas; ago/26 fechado R$ 7.468.338,10.
+
+- id: pedidos_ritmo
+  titulo: Ritmo de entrada de pedidos
+  pergunta: A carteira que alimenta o mês que vem está entrando?
+  area: comercial
+  sql: sql/pedidos_ritmo.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: PCT_VS_MEDIA_90D
+  unidade: percentual
+  avaliacao: { tipo: limite_inferior, verde: 95, amarelo: 85, vermelho: 75 }
+  dono: diretor_comercial
+  canal_teams: comercial
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "Entrada de pedidos em {valor}% da média de 90 dias"
+    passos:
+      - "Liste os 5 clientes que pararam de comprar vs. o mesmo período anterior."
+      - "Diga o que já foi feito de contato e o que falta."
+      - "Traga a previsão de fechamento da semana, por representante."
+    sla_resposta_horas: 8
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Set/26 MTD: 4.350 pedidos, R$ 4.331.656,45.
+
+- id: performance_representante
+  titulo: Performance por representante
+  pergunta: Quem está fora do ritmo e há quantos dias?
+  area: comercial
+  sql: sql/performance_representante.sql
+  frequencia: semanal
+  dia_semana: seg
+  horario: "08:00"
+  metrica: QTD_ABAIXO_META
+  unidade: contagem
+  avaliacao: { tipo: limite_superior, verde: 10, amarelo: 20, vermelho: 28 }
+  dono: diretor_comercial
+  canal_teams: comercial
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "{valor} representantes abaixo da meta"
+    passos:
+      - "Para cada nome da lista: plano de recuperação ou data de desligamento."
+      - "Não aceito 'vou falar com ele' — quero o que foi combinado e até quando."
+    sla_resposta_horas: 24
+  status_dado: calibrar
+  modo: sombra
+  observacao: >
+    Roda e dá lista nominal. Aferido 22/09/26 (só TGFVEN.ATIVO='S', piso de
+    relevância R$ 5.000 de média 3M): 53 representantes, 26 abaixo de 80% da
+    própria média, 16 abaixo de 50%, 7 zerados no mês.
+    POR QUE NASCE EM SOMBRA: no mesmo mês o faturamento total projeta 107% da
+    média. Metade dos representantes cair enquanto o total sobe é mudança de
+    mix (ou meta individual desatualizada), não queda de esforço — cobrar 26
+    pessoas com esse número queima a credibilidade da matriz na primeira
+    semana. Ativar quando o diretor comercial fixar a meta individual.
+    Zero notas sem vendedor atribuído no período — a distorção clássica de
+    ranking não está ocorrendo, o que é uma boa notícia.
+
+- id: performance_canal
+  titulo: Performance por canal
+  pergunta: Qual canal está carregando o mês e qual está afundando?
+  area: comercial
+  sql: sql/performance_canal.sql
+  frequencia: semanal
+  dia_semana: seg
+  horario: "08:00"
+  metrica: PCT_PIOR_CANAL_VS_MEDIA
+  unidade: percentual
+  avaliacao: { tipo: limite_inferior, verde: 90, amarelo: 75, vermelho: 60 }
+  dono: diretor_comercial
+  canal_teams: comercial
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams] }
+  acao:
+    titulo: "Canal {rotulo} em {valor}% da própria média"
+    passos:
+      - "Diga se é problema de demanda, de preço ou de cobertura."
+      - "Se for preço, traga a proposta — não a reclamação."
+    sla_resposta_horas: 24
+  status_dado: calibrar
+  modo: sombra
+  observacao: >
+    Canal vem de TGFCAB.AD_ORIGEM (Representante, FORÇA DE VENDAS, Farmer,
+    Gestor, Outside). PROBLEMA: 27% do faturamento de set/26 (R$ 1.716.600,96
+    em 4.079 notas) está com AD_ORIGEM NULO. Enquanto isso não for corrigido no
+    cadastro, o ranking de canal é enviesado. Fica em sombra.
+
+# ---------------------------------------------------------------------------
+# LOGÍSTICA / EXPEDIÇÃO
+# ---------------------------------------------------------------------------
+
+- id: cargas_montadas_dia
+  titulo: Ordens de carga montadas por dia
+  pergunta: A expedição está escoando no ritmo da carteira?
+  area: logistica
+  sql: sql/cargas_dia.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: ORDENS_ONTEM
+  unidade: contagem
+  avaliacao: { tipo: limite_inferior, verde: 30, amarelo: 20, vermelho: 12 }
+  dono: logistica
+  canal_teams: logistica
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "Só {valor} ordens de carga montadas ontem"
+    passos:
+      - "Diga o que travou: doca, veículo, separação ou falta de pedido com estoque."
+      - "Quantos pedidos ficaram fora da carga e por quê."
+      - "O que sai hoje para recuperar."
+    sla_resposta_horas: 3
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Fonte é TGFORD (nativa, viva). NÃO usar AD_CARGADIARIA / AD_ORDENSCARGA /
+    AD_PEDIDOSCARGA — pararam de ser alimentadas em 20/05/2026.
+    Observado 14–22/09/26: 15, 22, 28, 90, 33, 5, 54, 48 ordens/dia.
+
+- id: agendamentos_reagendados
+  titulo: Entregas reagendadas
+  pergunta: Quantas entregas o cliente empurrou, e quem tratou?
+  area: logistica
+  sql: sql/agendamentos_reagendados.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: PCT_REAGENDADO
+  unidade: percentual
+  avaliacao: { tipo: limite_superior, verde: 5, amarelo: 12, vermelho: 20 }
+  dono: logistica
+  canal_teams: logistica
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "{valor}% das entregas agendadas foram empurradas"
+    passos:
+      - "Separe o que foi pedido do cliente do que foi falha nossa de janela."
+      - "Para as nossas: o que muda no roteiro a partir de amanhã."
+    sla_resposta_horas: 8
+  status_dado: calibrar
+  modo: sombra
+  observacao: >
+    AD_TSIAGENENT está viva (384 agendamentos em set/26). MAS o STATUS='M'
+    (Mudança de Data) aparece só 1 vez no mês — a equipe registra a mudança
+    sobrescrevendo NOVADATA em vez de marcar o status. O SQL usa NOVADATA <>
+    data original como proxy; validar com a expedição antes de ativar.
+
+# ---------------------------------------------------------------------------
+# QUALIDADE / DEVOLUÇÕES
+# ---------------------------------------------------------------------------
+
+- id: devolucoes
+  titulo: Notas devolvidas
+  pergunta: Quanto do que faturei está voltando, e por quê?
+  area: qualidade
+  sql: sql/devolucoes.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: PCT_SOBRE_FATURAMENTO
+  unidade: percentual
+  avaliacao: { tipo: limite_superior, verde: 1.5, amarelo: 3.0, vermelho: 5.0 }
+  dono: qualidade
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "Devoluções em {valor}% do faturamento"
+    passos:
+      - "Top 3 motivos e top 3 clientes da janela."
+      - "Se for defeito, qual molde/injetora e qual lote."
+      - "Contenção para hoje e correção para a semana."
+    sla_resposta_horas: 8
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    ARMADILHA CONFIRMADA: TIPMOV='D' cru infla ~3x. A TOP 2203 "Devolução
+    Simbólica Consignado" somou R$ 1.426.216,82 no 3º tri/26 e NÃO é devolução
+    de cliente — é acerto de consignação. O SQL exclui a 2203.
+    Devolução real no trimestre: TOPs 5205, 2201, 2206, 2215.
+
+- id: reentradas
+  titulo: Notas com reentrada / refaturamento
+  pergunta: O que voltou, foi resolvido e refaturado — ou está parado?
+  area: qualidade
+  sql: sql/reentradas.sql
+  frequencia: semanal
+  dia_semana: seg
+  horario: "08:00"
+  metrica: QTD_REFATURADAS
+  unidade: contagem
+  avaliacao: { tipo: limite_superior, verde: 15, amarelo: 30, vermelho: 50 }
+  dono: qualidade
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams] }
+  acao:
+    titulo: "{valor} notas refaturadas na janela"
+    passos:
+      - "Quantas ainda não voltaram para o cliente e há quantos dias."
+      - "Qual a causa-raiz mais frequente e o que já mudou por causa dela."
+    sla_resposta_horas: 24
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    TGFCAB.AD_REFATURADA='S'. Set/26: 17 notas, R$ 186.222,34.
+    TGFCAB.AD_NUDEV (vínculo com a devolução) preenchido em 58 notas no mês.
+
+# ---------------------------------------------------------------------------
+# PRODUÇÃO
+# ---------------------------------------------------------------------------
+
+- id: maquinas_paradas
+  titulo: Injetoras paradas agora
+  pergunta: Quantas das 45 injetoras estão sem tiro neste momento?
+  area: producao
+  sql: sql/maquinas_paradas.sql
+  frequencia: horaria
+  metrica: PARADAS_60MIN
+  unidade: contagem
+  avaliacao: { tipo: limite_superior, verde: 2, amarelo: 4, vermelho: 7 }
+  dono: gerente_producao
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "{valor} injetoras paradas há mais de 1 hora"
+    passos:
+      - "Para cada máquina da lista: motivo e previsão de religar."
+      - "Se é falta de MP ou molde, diga quem está resolvendo e desde quando."
+    sla_resposta_horas: 1
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Fonte é o batimento IoT em TPRWCP.AD_DHCICLO (45 injetoras com
+    AD_MONITORADO='S', sinal vivo). NÃO usar AD_PARADAMAQUINA — morreu em
+    31/10/2024. E AD_ESTADOATUAL está 100% nulo: o sinal confiável é o tempo
+    desde o último ciclo, não o estado declarado.
+    Aferido 22/09/26 16:45 — 45 monitoradas, 1 parada há mais de 60 min.
+
+- id: setup_maquinas
+  titulo: Tempo de setup das injetoras
+  pergunta: A troca de molde está dentro dos 40 minutos de padrão?
+  area: producao
+  sql: sql/setup_maquinas.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: PCT_ACIMA_PADRAO
+  unidade: percentual
+  avaliacao: { tipo: limite_superior, verde: 20, amarelo: 40, vermelho: 60 }
+  dono: gerente_producao
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "{valor}% das trocas estouraram o padrão de setup"
+    passos:
+      - "Quais máquinas e quais turnos concentram o estouro."
+      - "Falta ferramenta, molde pré-aquecido ou gente treinada? Escolha uma."
+    sla_resposta_horas: 8
+  status_dado: calibrar
+  modo: sombra
+  observacao: >
+    LACUNA REAL. O padrão existe (TPRWCP.TEMPOSETUP = 40 min nas 45 injetoras),
+    mas o REALIZADO não é mais gravado: AD_PARADAMAQUINA (MOTIVO='SM') parou em
+    31/10/2024. O SQL atual infere setup pela lacuna entre o último ciclo de uma
+    OP e o primeiro da OP seguinte na mesma injetora (AD_APONTACICLO +
+    AD_TGPAPO). É uma aproximação — precisa ser conferida contra o chão de
+    fábrica antes de virar cobrança. Ver docs/achados-de-dados.md.
+
+- id: ruptura_estoque
+  titulo: Produtos sem estoque com pedido na carteira
+  pergunta: Quanto de venda está parada esperando o PCP produzir?
+  area: pcp
+  sql: sql/ruptura_estoque.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: VLR_EM_RISCO
+  unidade: reais
+  avaliacao: { tipo: limite_superior, verde: 300000, amarelo: 800000, vermelho: 1500000 }
+  dono: pcp
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "R$ {valor} de carteira parada por falta de estoque"
+    passos:
+      - "Dos itens da lista: quais entram na programação desta semana."
+      - "Quais dependem de MP e qual a data de chegada."
+      - "Quais são transferência do CD (não são ruptura) — separe-os."
+    sla_resposta_horas: 4
+  status_dado: calibrar
+  modo: sombra
+  observacao: >
+    Roda e dá número (22/09/26: 460 itens sem saldo, R$ 1.577.274,91 de carteira
+    exposta), mas o SALDO ainda não é confiável o bastante para cobrar o PCP:
+    - TGFEST na CODEMP 1 tem 12,5 milhões de linhas e soma 3×10^19 unidades —
+      dado histórico corrompido. Inutilizável.
+    - CODEMP 4 e 14 somam saldo NEGATIVO no total.
+    - TGFEST.QTDPEDPENDEST está 100% zerado, então a demanda tem que vir de
+      TGFITE sobre pedidos pendentes.
+    - Parte do que aparece como ruptura é transferência interna CD->produção,
+      que a skill de roteirização trata como NÃO-ruptura.
+    Calibrar com o PCP qual empresa é a fonte de saldo por linha de produto.
+
+# ---------------------------------------------------------------------------
+# FINANCEIRO
+# ---------------------------------------------------------------------------
+
+- id: fluxo_caixa_critico
+  titulo: Fluxo de caixa dos próximos 7 dias
+  pergunta: Fecha ou falta? E se falta, quanto e em que dia?
+  area: financeiro
+  sql: sql/fluxo_caixa.sql
+  frequencia: diaria
+  horario: "07:00"
+  metrica: SALDO_D0_D7
+  unidade: reais
+  avaliacao:
+    tipo: limite_inferior
+    verde: 0
+    amarelo: -300000
+    vermelho: -1000000
+  dono: financeiro
+  canal_teams: financeiro
+  notificar: { verde: [], amarelo: [teams, email], vermelho: [teams, email] }
+  acao:
+    titulo: "Gap de caixa de R$ {valor} em 7 dias"
+    passos:
+      - "Qual dia estoura e de quanto é o buraco naquele dia."
+      - "O que dá para antecipar de recebível e a que custo."
+      - "O que dá para empurrar de pagamento sem quebrar fornecedor crítico."
+      - "Se precisar de linha bancária, qual, quanto e até quando decidir."
+    sla_resposta_horas: 2
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Aferido 22/09/26 (títulos em aberto, não-provisão, Nitron):
+      D0–D7:  receber R$ 1.675.470,84 / pagar R$ 1.817.828,24  -> gap -142.357,40
+      D8–D30: receber R$ 5.676.974,53 / pagar R$ 13.426.196,66 -> gap -7.749.222,13
+      Vencido a receber (365d): R$ 9.728.499,68 em 3.352 títulos
+    O gap de D8–D30 é a notícia, não o de D0–D7. NÃO inclui saldo bancário
+    inicial — ver docs/achados-de-dados.md, item "saldo de abertura".
+
+- id: inadimplencia
+  titulo: Recebíveis vencidos
+  pergunta: Quanto já venceu e não entrou?
+  area: financeiro
+  sql: sql/inadimplencia.sql
+  frequencia: semanal
+  dia_semana: seg
+  horario: "08:00"
+  metrica: VLR_VENCIDO
+  unidade: reais
+  avaliacao: { tipo: limite_superior, verde: 5000000, amarelo: 8000000, vermelho: 12000000 }
+  dono: financeiro
+  canal_teams: financeiro
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "R$ {valor} vencidos a receber"
+    passos:
+      - "Top 10 devedores e o estágio de cada cobrança."
+      - "O que vai para protesto/jurídico esta semana."
+      - "Quem desses ainda está comprando — e por que ainda está."
+    sla_resposta_horas: 24
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    22/09/26: R$ 9.728.499,68 em 3.352 títulos vencidos nos últimos 365 dias.

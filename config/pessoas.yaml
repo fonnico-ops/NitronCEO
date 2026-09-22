@@ -1,0 +1,63 @@
+# Quem responde por quê. O motor não sabe cobrar ninguém sem este arquivo.
+#
+# `teams_id`  -> e-mail/UPN do Microsoft 365 (o mesmo usado no Teams).
+# `escalonar_para` -> para quem a cobrança sobe quando o SLA estoura.
+# O CEO é sempre o último degrau: se chegou nele, o processo falhou antes.
+
+papeis:
+  ceo:
+    nome: Renato
+    teams_id: renato@nitron.com.br
+    email: renato@nitron.com.br
+    escalonar_para: null
+
+  diretor_comercial:
+    nome: "(preencher)"
+    teams_id: comercial@nitron.com.br
+    email: comercial@nitron.com.br
+    escalonar_para: ceo
+
+  gerente_producao:
+    nome: "(preencher)"
+    teams_id: producao@nitron.com.br
+    email: producao@nitron.com.br
+    escalonar_para: ceo
+
+  pcp:
+    nome: "(preencher)"
+    teams_id: pcp@nitron.com.br
+    email: pcp@nitron.com.br
+    escalonar_para: gerente_producao
+
+  logistica:
+    nome: "(preencher)"
+    teams_id: expedicao@nitron.com.br
+    email: expedicao@nitron.com.br
+    escalonar_para: ceo
+
+  financeiro:
+    nome: "(preencher)"
+    teams_id: financeiro@nitron.com.br
+    email: financeiro@nitron.com.br
+    escalonar_para: ceo
+
+  qualidade:
+    nome: "(preencher)"
+    teams_id: qualidade@nitron.com.br
+    email: qualidade@nitron.com.br
+    escalonar_para: gerente_producao
+
+canais_teams:
+  # Canal de time (mensagem em canal) para sinais que são do grupo, não de uma pessoa.
+  comercial:
+    team: "Comercial Nitron"
+    canal: "Geral"
+  producao:
+    team: "Produção Nitron"
+    canal: "Chão de Fábrica"
+  financeiro:
+    team: "Financeiro Nitron"
+    canal: "Geral"
+  logistica:
+    team: "Logística Nitron"
+    canal: "Expedição"
