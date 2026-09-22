@@ -36,6 +36,7 @@ from .config import Config
 # indicador, não para ocupar espaço vazio.
 AREAS = [
     ("comercial", "Comercial"),
+    ("ecommerce", "E-commerce"),
     ("logistica", "Faturamento / Expedição"),
     ("qualidade", "Qualidade"),
     ("producao", "Produção"),

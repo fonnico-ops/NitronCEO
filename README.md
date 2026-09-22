@@ -18,7 +18,7 @@ Um indicador que não chega até `cobrar` não entra na matriz.
 
 ## Estado hoje
 
-35 KPIs. **31 cobram. 4 estão em sombra** — medem e aparecem no pulso, mas não
+37 KPIs. **33 cobram. 4 estão em sombra** — medem e aparecem no pulso, mas não
 notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 
 | KPI | Dono | Estado |
@@ -30,6 +30,8 @@ notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 | Pedidos esperando aprovação ou recusa | Ricardo Miyabara | ✅ cobra |
 | Produtos que pararam de vender | Ricardo Miyabara | ✅ cobra |
 | Ritmo de entrada de pedidos | Ricardo Miyabara | ✅ cobra |
+| Mix do catálogo no e-commerce | Ana Julia | ✅ cobra |
+| Ritmo de vendas do e-commerce | Ana Julia | ✅ cobra |
 | Despesa fora de Compras acima do padrão | Claudia Ribeiro | ✅ cobra |
 | Fluxo de caixa dos próximos 7 dias | Claudia Ribeiro | ✅ cobra |
 | Grandes devedores | Claudia Ribeiro | ✅ cobra |

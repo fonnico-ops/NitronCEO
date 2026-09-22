@@ -702,3 +702,75 @@ entrega em andamento, e não só de entrega provada.
 A mesma view mostra `TEMXML` e `TEMDANFE`: dos 20.300 títulos a receber em
 aberto, 6.931 (34%) têm XML e DANFE amarrados. Não virou KPI, mas é a mesma
 família de problema — documento que deveria estar anexado e não está.
+
+
+---
+
+## 21. E-commerce: não há flag de canal, e a integração de marketplace é nova
+
+### Como o e-commerce é identificado
+
+Não existe marcador de canal para e-commerce. `TGFCAB.AD_ORIGEM` tem
+Representante, Força de Vendas, Farmer, Gestor e Outside — e-commerce não
+está entre eles. A identificação é pela **TOP**, cuja descrição contém
+"Site":
+
+| TOP | Descrição | Notas em 180d |
+|---|---|---|
+| 3226 | Venda Site Mundo Ud | **21.506** (R$ 523.322) |
+| 3248 | Venda Site Nitron Clientes Especiais | 2 |
+| 3231 | Venda Site Hyak | 0 |
+| 3232 | Venda Site FULL ML | 0 |
+
+Ou seja: na prática o e-commerce faturado é **uma TOP só**. Existe "Pedido de
+Venda Site Nitron" (3127) com 3.621 pedidos em 180 dias, mas não há TOP de
+faturamento correspondente com movimento — vale conferir por onde esses
+pedidos faturam.
+
+### O ritmo, e o que o ticket revela
+
+| Mês | Pedidos | Valor | Ticket |
+|---|---|---|---|
+| abr/26 | 3.153 | R$ 79.405 | R$ 25,18 |
+| mai/26 | 3.805 | R$ 83.578 | R$ 21,97 |
+| jun/26 | 3.894 | R$ 87.309 | R$ 22,42 |
+| jul/26 | 3.096 | R$ 83.638 | R$ 27,01 |
+| ago/26 | 4.043 | **R$ 126.937** | **R$ 31,40** |
+| set/26 (22d) | 3.257 | R$ 84.901 | R$ 26,07 |
+
+O mês corrente roda a **154,7% da média de 90 dias** — está crescendo. Mas o
+ticket caiu de R$ 28,34 (histórico) para R$ 26,07: o crescimento é por
+**volume de pedido barato**, não por ticket. Por isso o KPI traz os dois.
+
+### A quebra por plataforma só existe desde 31/08
+
+`AD_PEDIDOSANY` é a integração Anymarket e traz `MARKETPLACE` e
+`ACCOUNTNAME`. É **nova**: primeiro pedido em 31/08/2026 (Shopee Mundo UD),
+14/09 (Mercado Livre Mundo UD), 16/09 (Shopee Nitron).
+
+| Marketplace / conta | Pedidos | Valor | Taxa |
+|---|---|---|---|
+| SHOPEE / Mundo UD | 1.091 | R$ 19.850 | R$ 0 |
+| SHOPEE / Nitron | 559 | R$ 9.070 | R$ 0 |
+| MERCADO_LIVRE / Mundo UD | 172 | R$ 7.643 | R$ 853 |
+| MERCADO_LIVRE / Nitron Vida Casa | 23 | R$ 1.049 | R$ 134 |
+
+**Dos 1.845 pedidos do Anymarket, só 1.115 (60%) têm `NUNOTA`** — 40% não
+viraram nota. Pode ser fila normal de processamento ou falha de integração; é
+pergunta na ação do KPI.
+
+A taxa da Shopee aparece como zero, o que provavelmente significa que não
+está sendo importada — o custo real do marketplace não está no ERP.
+
+### A cauda do catálogo
+
+90 dias, 382 SKUs vendidos, R$ 309.402:
+
+- **90 SKUs (23,6%) fazem 80% da receita**
+- **120 SKUs venderam menos de R$ 100** no trimestre, somando R$ 5.700 —
+  1,8% da receita em 31% do catálogo ativo
+- 83 SKUs venderam até 2 unidades
+
+Concentração alta é normal no varejo online; o que se cobra é a decisão sobre
+a cauda, porque cada SKU custa foto, descrição, anúncio em cada marketplace e
+espaço de estoque.

@@ -1321,3 +1321,90 @@ kpis:
     100% NULO nas 16.497 notas de venda dos últimos 90 dias. Não dá para
     monitorar status de entrega porque ninguém preenche — ver
     docs/achados-de-dados.md.
+
+# ---------------------------------------------------------------------------
+# E-COMMERCE
+# ---------------------------------------------------------------------------
+
+- id: ecommerce_ritmo
+  titulo: Ritmo de vendas do e-commerce
+  pergunta: O e-commerce está crescendo ou perdendo ritmo?
+  area: ecommerce
+  sql: sql/ecommerce_ritmo.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: PCT_VS_MEDIA
+  unidade: percentual
+  avaliacao: { tipo: limite_inferior, verde: 105, amarelo: 90, vermelho: 75 }
+  dono: ecommerce
+  canal_teams: ecommerce
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "E-commerce em {valor}% do ritmo histórico"
+    passos:
+      - "Quebra por plataforma: qual caiu e por quê — verba, ranking, ruptura ou preço?"
+      - "O ticket está subindo ou só o volume? Crescer por pedido barato não escala."
+      - "Dos 1.845 pedidos do Anymarket, 40% não têm nota. Onde trava?"
+      - "Se a queda é falta de estoque, cruze com o PCP antes de me responder."
+    sla_resposta_horas: 8
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    E-commerce é identificado pelas TOPs cuja descrição contém "Site" e que
+    são faturamento (ATUALCOM='C') — NÃO há flag de canal: TGFCAB.AD_ORIGEM
+    tem Representante, Força de Vendas, Farmer, Gestor e Outside, e
+    e-commerce não está entre eles. A TOP viva é a 3226 (Venda Site Mundo Ud),
+    com 21.506 notas em 180 dias; as demais (3231 Hyak, 3232 FULL ML) estão
+    zeradas.
+    HISTÓRICO aferido 22/09/26:
+      abr/26  3.153 pedidos  R$  79.405  ticket R$ 25,18
+      mai/26  3.805          R$  83.578  ticket R$ 21,97
+      jun/26  3.894          R$  87.309  ticket R$ 22,42
+      jul/26  3.096          R$  83.638  ticket R$ 27,01
+      ago/26  4.043          R$ 126.937  ticket R$ 31,40   <- melhor mês
+      set/26  3.257 (22d)    R$  84.901  ticket R$ 26,07
+    O KPI traz TICKET junto com valor de propósito: o ticket saltou de R$ 22
+    para R$ 31 em agosto e recuou para R$ 26. Crescer por volume de pedido
+    barato e crescer por ticket são coisas diferentes, e só a segunda escala.
+    PLATAFORMA vem de AD_PEDIDOSANY (Anymarket). LIMITAÇÃO: a integração é
+    NOVA — primeiro pedido em 31/08/26 (Shopee Mundo UD), 14/09 (ML Mundo UD),
+    16/09 (Shopee Nitron). A quebra por marketplace só vale para o mês
+    corrente. E dos 1.845 pedidos do Anymarket, só 1.115 (60%) têm NUNOTA —
+    40% não viraram nota, o que é pergunta na ação.
+
+- id: ecommerce_mix
+  titulo: Mix do catálogo no e-commerce
+  pergunta: O que vende e o que ocupa espaço sem vender?
+  area: ecommerce
+  sql: sql/ecommerce_mix.sql
+  frequencia: semanal
+  dia_semana: seg
+  horario: "08:00"
+  metrica: SKUS_CAUDA
+  unidade: contagem
+  avaliacao: { tipo: limite_superior, verde: 60, amarelo: 110, vermelho: 180 }
+  dono: ecommerce
+  canal_teams: ecommerce
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams] }
+  acao:
+    titulo: "{valor} SKUs venderam menos de R$ 100 em 90 dias"
+    passos:
+      - "Para cada um da cauda: sobe verba, corrige preço, melhora foto, ou sai do ar?"
+      - "Os que saem: avise o PCP e o estoque, para não produzir nem guardar."
+      - "Dos campeões: algum está com ruptura ou preço desatualizado no marketplace?"
+      - "Não quero a lista de volta — quero a decisão tomada para cada bloco."
+    sla_resposta_horas: 48
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Responde às duas pontas de uma vez — o que mais vende e o que menos vende —
+    porque são a mesma decisão: onde colocar foto, anúncio, verba e estoque.
+    AFERIDO 22/09/26 (90 dias): 382 SKUs vendidos somando R$ 309.402,02.
+    90 SKUs (23,6%) fazem 80% da receita. 120 SKUs venderam MENOS DE R$ 100 no
+    trimestre, somando R$ 5.700,38 — 1,8% da receita em 31% do catálogo ativo.
+    83 SKUs venderam até 2 unidades.
+    A MÉTRICA É A CAUDA, não a concentração: concentração alta é normal e
+    saudável no varejo online. O que se cobra é a DECISÃO sobre o que não
+    vende — cada SKU tem foto, descrição, anúncio em cada marketplace e espaço
+    de estoque, e 120 itens que somam R$ 5.700 em três meses custam mais
+    atenção do que devolvem.

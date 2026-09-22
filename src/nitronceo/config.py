@@ -150,6 +150,11 @@ def _params_padrao(matriz: dict[str, Any]) -> dict[str, Any]:
         "CICLO_MIN_APONTAMENTOS": "500",
         "OS_IDADE_ALERTA": "30",
         "CANHOTO_CARENCIA_DIAS": "15",
+        # E-commerce: identificado pelas TOPs de "Site". Não há flag de canal
+        # na TGFCAB para isso — AD_ORIGEM não tem e-commerce entre os valores.
+        "EC_CAUDA_PISO": "100",
+        "EC_JANELA_DIAS": "90",
+        "EC_JANELA_MIX_DIAS": "90",
         "JANELA_CANHOTO_DIAS": "90",
         "JANELA_PREVENTIVA_DIAS": "180",
         "NAT_COMPRAS": ("3010101,3010103,3010105,3010106,3010107,3010108,"

@@ -79,6 +79,13 @@ papeis:
       - nome: Charles Silva
         email: charles.silva@nitron.com.br
 
+  ecommerce:
+    nome: E-commerce
+    escalonar_para: ceo
+    pessoas:
+      - nome: Ana Julia
+        email: ecommerce2@nitron.com.br
+
   projetos:
     nome: Projetos / Moldes
     escalonar_para: ceo
@@ -102,3 +109,6 @@ canais_teams:
   logistica:
     team: "Logística Nitron"
     canal: "Expedição"
+  ecommerce:
+    team: "Comercial Nitron"
+    canal: "E-commerce"
