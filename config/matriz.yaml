@@ -1274,3 +1274,50 @@ kpis:
     Os limiares (30/20/12) são o padrão de manutenção industrial para uma
     operação que quer sair do modo reativo, não um benchmark do setor. Vale
     acordar com a produção antes de tratar o vermelho como falha.
+
+- id: entrega_sem_canhoto
+  titulo: Faturamento sem canhoto de entrega
+  pergunta: Quanto faturamos sem ter prova de que foi entregue?
+  area: logistica
+  sql: sql/entrega_sem_canhoto.sql
+  frequencia: semanal
+  dia_semana: seg
+  horario: "08:00"
+  metrica: VLR_SEM_CANHOTO
+  unidade: reais
+  avaliacao: { tipo: limite_superior, verde: 800000, amarelo: 2000000, vermelho: 3500000 }
+  dono: logistica
+  canal_teams: logistica
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "R$ {valor} faturados há mais de 15 dias sem canhoto"
+    passos:
+      - "A entrega própria devolve canhoto em 1 de cada 10; a transportadora, em 6 de cada 10. O que o terceiro faz que a frota não faz?"
+      - "Qual o processo de retorno do canhoto da frota hoje, e onde ele quebra?"
+      - "Para os clientes da lista: buscar o comprovante agora, antes que vire disputa."
+      - "Sem canhoto não há prova de entrega — em alegação de não-recebimento, perdemos."
+    sla_resposta_horas: 48
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Canhoto = registro em AD_ARQENTREGA por NUNOTA (66.993 arquivos em 65.394
+    notas). A tabela foi encontrada pela definição da view AD_VW_TITREC_NF,
+    que já calculava TEMCANHOTO para a fila de títulos; aqui a mesma regra vai
+    para o FATURAMENTO, não só para o título em aberto.
+    AFERIDO 22/09/26 (90 dias, empresas 1,2,4,14): 16.106 notas, apenas 18,7%
+    com canhoto. 9.478 notas com mais de 15 dias e sem canhoto, somando
+    R$ 3.996.797,59.
+    O ACHADO QUE DIRIGE A COBRANÇA — cobertura por modal, 5 meses:
+      entrega própria/NTR   15,0% · 9,0% · 8,2% · 13,1% · 9,5%
+      transportadora        65,8% · 65,0% · 68,8% · 62,7% · 60,6%
+    Quando vai por transportadora de terceiro o canhoto volta em 6 de cada 10;
+    pela frota própria, em 1 de cada 10 — e a frota é QUATRO VEZES o volume.
+    Não é problema de sistema, é o processo de retorno do canhoto da entrega
+    própria. E conecta com emissao_ntrlog: a mesma operação que não emite nota
+    de frete também não devolve comprovante.
+    CARÊNCIA de 15 dias: nota faturada ontem ainda não tem canhoto de volta
+    por motivo legítimo.
+    SOBRE O "STATUS DE ENTREGA": o campo TGFCAB.AD_STATUSENTREGA existe e está
+    100% NULO nas 16.497 notas de venda dos últimos 90 dias. Não dá para
+    monitorar status de entrega porque ninguém preenche — ver
+    docs/achados-de-dados.md.

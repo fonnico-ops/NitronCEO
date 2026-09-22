@@ -149,6 +149,8 @@ def _params_padrao(matriz: dict[str, Any]) -> dict[str, Any]:
         "ESTOQUE_INATIVO_PISO": "3000",
         "CICLO_MIN_APONTAMENTOS": "500",
         "OS_IDADE_ALERTA": "30",
+        "CANHOTO_CARENCIA_DIAS": "15",
+        "JANELA_CANHOTO_DIAS": "90",
         "JANELA_PREVENTIVA_DIAS": "180",
         "NAT_COMPRAS": ("3010101,3010103,3010105,3010106,3010107,3010108,"
                         "3010109,3010110,8010700"),

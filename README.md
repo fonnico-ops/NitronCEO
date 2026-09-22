@@ -18,7 +18,7 @@ Um indicador que não chega até `cobrar` não entra na matriz.
 
 ## Estado hoje
 
-34 KPIs. **30 cobram. 4 estão em sombra** — medem e aparecem no pulso, mas não
+35 KPIs. **31 cobram. 4 estão em sombra** — medem e aparecem no pulso, mas não
 notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 
 | KPI | Dono | Estado |
@@ -43,6 +43,7 @@ notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 | Tempo de setup das injetoras | Alex Souza e Charles Silva | ✅ cobra |
 | Agenda de carga contra a capacidade | Expedição e Forla Silva | ✅ cobra |
 | Emissão da NTR Log contra o frete pago | Expedição e Forla Silva | ✅ cobra |
+| Faturamento sem canhoto de entrega | Expedição e Forla Silva | ✅ cobra |
 | Notas com reentrada / refaturamento | Expedição e Forla Silva | ✅ cobra |
 | Notas devolvidas | Expedição e Forla Silva | ✅ cobra |
 | Ordens de carga montadas por dia | Expedição e Forla Silva | ✅ cobra |

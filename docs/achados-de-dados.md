@@ -650,3 +650,55 @@ mais devagar antes de quebrar.
 `AD_TGFCHAMADOS` (chamados de sistema, com `MODULO` e `STATUSCHAMADO`)
 também está viva: 3.084 chamados, **542 abertos**, última em 21/09/2026. Não
 virou KPI porque não há papel de TI declarado em `pessoas.yaml`.
+
+
+---
+
+## 20. Canhoto: a frota própria não devolve, a transportadora devolve
+
+A prova de entrega vive em **`AD_ARQENTREGA`**, chaveada por `NUNOTA` —
+66.993 arquivos em 65.394 notas. A tabela não estava no dicionário; foi
+encontrada lendo a definição da view `AD_VW_TITREC_NF`, que já calculava
+`TEMCANHOTO` para a fila de títulos a receber.
+
+Nos últimos 90 dias (empresas 1, 2, 4 e 14): 16.106 notas faturadas, **18,7%
+com canhoto**. 9.478 notas com mais de 15 dias e sem comprovante, somando
+**R$ 3.996.797,59**.
+
+### O corte que dirige a cobrança
+
+| Mês | Entrega própria / NTR | Transportadora terceira |
+|---|---|---|
+| abr/26 | 15,0% (3.862 notas) | 65,8% (1.421 notas) |
+| mai/26 | 9,0% (5.012) | 65,0% (1.330) |
+| jun/26 | 8,2% (5.194) | 68,8% (828) |
+| jul/26 | 13,1% (3.651) | 62,7% (773) |
+| ago/26 | 9,5% (4.395) | 60,6% (1.059) |
+
+Quando a mercadoria vai por transportadora de terceiro, o canhoto volta em
+**6 de cada 10** entregas. Pela frota própria/NTR Log, volta em **1 de cada
+10** — e a frota é **quatro vezes o volume**.
+
+Não é problema de sistema: é o processo de retorno do canhoto da entrega
+própria. E conecta com `emissao_ntrlog` — a mesma operação que não emite nota
+de frete também não devolve comprovante de entrega.
+
+Concentração do risco: **NATURA FILIAL CABREÚVA, 6 notas, R$ 1.136.353** sem
+canhoto. Depois HYAK (R$ 567.074) e CASA E VIDEO (R$ 244.284).
+
+### O status de entrega não existe na prática
+
+`TGFCAB.AD_STATUSENTREGA` existe como campo e está **100% NULO** nas 16.497
+notas de venda dos últimos 90 dias. Não há como monitorar status de entrega
+porque ninguém preenche.
+
+Isso deixa uma lacuna real: hoje só dá para saber se a entrega foi
+**comprovada** (canhoto), não em que **estágio** ela está. Preencher esse
+campo — ou apontar o estágio em outro lugar — é o que permitiria um KPI de
+entrega em andamento, e não só de entrega provada.
+
+### Uma segunda fila de comprovação
+
+A mesma view mostra `TEMXML` e `TEMDANFE`: dos 20.300 títulos a receber em
+aberto, 6.931 (34%) têm XML e DANFE amarrados. Não virou KPI, mas é a mesma
+família de problema — documento que deveria estar anexado e não está.
