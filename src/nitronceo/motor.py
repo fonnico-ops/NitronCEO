@@ -11,6 +11,7 @@ as cobranças pendentes de ontem continuam subindo a escada.
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -23,6 +24,12 @@ from .config import RAIZ, Config
 from .notificadores.base import Mensagem, Notificador
 from .repositorio import Repositorio
 from .sankhya import Fonte, FonteArquivo, montar_sql
+
+# Link do painel publicado. Quem é cobrado responde LÁ, não no terminal —
+# a maior parte dos donos nunca vai abrir um shell.
+PAINEL = os.getenv(
+    "NITRONCEO_PAINEL", "https://claude.ai/artifact/3aE3YSU2uJY5QW4PHDfsqz"
+)
 
 ICONE = {
     Nivel.VERDE: "🟢",
@@ -145,7 +152,7 @@ class Motor:
         corpo += [f"- {p}" for p in acao.passos]
         corpo += [
             "",
-            f"Responder com: `nitronceo responder {acao.id} \"<sua resposta>\"`",
+            f"**Responda no painel:** {PAINEL}#cob-{acao.id}",
         ]
 
         prefixo = "ESCALADA" if cobranca.escalada else "COBRANÇA"
@@ -191,7 +198,10 @@ class Motor:
             "",
             f"Prazo de resposta: {acao.prazo:%d/%m às %H:%M} "
             f"({acao.horas_restantes():.0f}h).",
-            f"Responder com: `nitronceo responder {acao.id} \"<sua resposta>\"`",
+            f"**Responda no painel:** {PAINEL}#cob-{acao.id}",
+            "A cobrança abre já aberta; escreva sua resposta no campo dela. "
+            "Marque *isto encerra a cobrança* só quando o assunto estiver "
+            "resolvido — um retorno parcial é bem-vindo e não para o relógio.",
             "",
             f"_Base do número: {kpi['sql']} — apurado em "
             f"{sinal.medido_em:%d/%m/%Y %H:%M}._",
