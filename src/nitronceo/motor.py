@@ -58,6 +58,7 @@ class Rodada:
     cobrancas: list[Cobranca] = field(default_factory=list)
     falhas: list[tuple[str, str]] = field(default_factory=list)
     falhas_de_redacao: list[tuple[str, str]] = field(default_factory=list)
+    desvios: list[tuple[str, str]] = field(default_factory=list)
 
 
 class Motor:
@@ -69,6 +70,7 @@ class Motor:
         notificadores: dict[str, Notificador],
         raiz: Path = RAIZ,
         redator: Redator | None = None,
+        fallback: str | None = None,
     ) -> None:
         self.cfg = cfg
         self.fonte = fonte
@@ -80,6 +82,11 @@ class Motor:
         # pode cair, e uma cobrança que não sai é pior que uma genérica.
         self.redator = redator
         self.falhas_de_redacao: list[tuple[str, str]] = []
+        # Canal usado quando o que a matriz pediu não está no ar. A matriz
+        # foi escrita supondo Teams; rodar só com e-mail não pode significar
+        # que o amarelo inteiro emudece.
+        self.fallback = fallback
+        self.desvios: list[tuple[str, str]] = []
 
     # ------------------------------------------------------------------ medir
 
@@ -95,6 +102,7 @@ class Motor:
     def rodar(self, apenas: list[str] | None = None, cobrar: bool = True) -> Rodada:
         rodada = Rodada()
         self.falhas_de_redacao = []
+        self.desvios = []
 
         for kpi in self.cfg.matriz["kpis"]:
             if apenas and kpi["id"] not in apenas:
@@ -118,6 +126,7 @@ class Motor:
             rodada.cobrancas = self.cobrar_pendentes()
 
         rodada.falhas_de_redacao = list(self.falhas_de_redacao)
+        rodada.desvios = list(self.desvios)
         return rodada
 
     # ----------------------------------------------------------------- cobrar
@@ -257,10 +266,25 @@ class Motor:
         ]
         return "\n".join(linhas)
 
+    def _canais_vivos(self, pedidos: list[str]) -> list[str]:
+        """Os canais que a matriz pediu e que estão realmente configurados.
+
+        Quando nenhum está, cai no fallback em vez de emudecer: uma cobrança
+        no canal errado ainda chega na pessoa; uma cobrança que não sai não
+        chega em lugar nenhum.
+        """
+        vivos = [c for c in pedidos if c in self.notificadores]
+        if vivos or not pedidos:
+            return vivos
+        if self.fallback and self.fallback in self.notificadores:
+            self.desvios.append((",".join(pedidos), self.fallback))
+            return [self.fallback]
+        return []
+
     def _despachar(
         self, canais: list[str], msg: Mensagem, emails: list[str]
     ) -> None:
-        for canal in canais:
+        for canal in self._canais_vivos(canais):
             notificador = self.notificadores.get(canal)
             if not notificador:
                 continue
@@ -314,6 +338,14 @@ def pulso(rodada: Rodada, cfg: Config) -> str:
     if rodada.falhas:
         linhas += ["", "### KPIs que não mediram"]
         linhas += [f"- {kid}: {erro}" for kid, erro in rodada.falhas]
+
+    if rodada.desvios:
+        de_para = sorted(set(rodada.desvios))
+        linhas += ["", "### Cobranças que saíram por outro canal"]
+        linhas += [
+            f"- a matriz pedia {pedido}, que não está configurado; foi por {usado}"
+            for pedido, usado in de_para
+        ]
 
     if rodada.falhas_de_redacao:
         # A cobrança saiu — com o texto padrão. Vale registrar porque é

@@ -104,6 +104,20 @@ Permissões de aplicação necessárias no Entra ID: `Mail.Send`,
 Se a TI não liberar chat 1:1 por client credentials, o fallback é mandar no
 canal da área e usar o e-mail como trilha individual.
 
+## Escolha de canal
+
+`--canais` decide o que fica no ar (`teams`, `email`, `ghl`). Quando a
+matriz pede um canal que não está configurado, `Motor._canais_vivos` cai no
+`fallback` em vez de emudecer, e registra o desvio em `Rodada.desvios`, que
+o pulso imprime. Isso importa mais do que parece: 35 dos 37 KPIs mandam o
+nível amarelo **só** pelo Teams, e dois mandam o vermelho só por lá — um
+modo só-e-mail sem fallback perderia quase toda a camada de aviso
+antecipado.
+
+Rodar só com e-mail é o caminho mais curto para produção: `Mail.Send` é uma
+permissão; o Teams por client credentials são três, e a de chat 1:1 é a que
+a TI menos costuma aprovar.
+
 **O GHL ainda não é um canal utilizável para cobrança interna.** A location
 da Nitron contém clientes, não funcionários: buscar
 `cristiane.alves@nitron.com.br` lá resolve para um contato de cliente com

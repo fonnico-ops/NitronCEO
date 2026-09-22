@@ -96,10 +96,39 @@ export SANKHYA_URL=... SANKHYA_USER=... SANKHYA_PASSWORD=...
 export MS_TENANT_ID=... MS_CLIENT_ID=... MS_CLIENT_SECRET=... MS_REMETENTE=...
 nitronceo rodar
 
+# só e-mail — o caminho mais curto para produção (uma permissão, não quatro)
+nitronceo rodar --canais email
+
 nitronceo pendentes
 nitronceo responder a1b2c3d4e5f6 "Protesto entra quinta; top 3 já em acordo."
 nitronceo importar respostas.json    # respostas vindas do painel publicado
 ```
+
+### Canais: dá para rodar só com e-mail
+
+`--canais` escolhe o que fica no ar. **O GHL nunca liga sozinho** — ele só
+existe se `GHL_TOKEN` e `GHL_LOCATION_ID` estiverem no ambiente, e ainda
+assim recusa qualquer destinatário que não seja um contato interno marcado.
+Cobrança interna não passa por ele.
+
+```bash
+nitronceo rodar --canais email          # só e-mail
+nitronceo rodar --canais teams,email    # o padrão
+```
+
+A armadilha do modo só-e-mail, e como ela é tratada: **35 dos 37 KPIs
+mandam o nível amarelo só pelo Teams**, e `reentradas` e `ecommerce_mix`
+mandam até o vermelho só por lá. Sem tratamento, desligar o Teams
+silenciaria a maior parte das cobranças. Por isso o motor tem fallback: o
+canal que a matriz pediu e não está no ar vira e-mail, e o pulso mostra
+quais desviaram. Nenhuma ação aberta fica sem mensagem.
+
+Na prática isso muda a conversa com a TI. O Teams por *client credentials*
+precisa de `ChannelMessage.Send`, `Chat.Create` e `ChatMessage.Send` — e
+mensagem direta 1:1 por aplicação é justamente a permissão mais difícil de
+aprovar. O e-mail precisa de **`Mail.Send` e mais nada**. Começar por
+`--canais email` tira o sistema do papel com uma permissão; o Teams entra
+depois, sem mudar uma linha de configuração da matriz.
 
 ### O Renato
 
@@ -308,10 +337,10 @@ src/nitronceo/
   analista.py           Renato: dossiê, leitura cruzada, redação da cobrança
   dashboard.py          painel do pipeline: drill-down + respostas
   notificadores/        console (dry-run), Teams/Outlook (Graph) e GHL
-tests/                  37 testes; 23 fixtures com dados reais de produção
+tests/                  40 testes; 23 fixtures com dados reais de produção
 docs/                   arquitetura, governança, achados de dados
 ```
 
 ```bash
-python -m pytest tests/ -q     # 37 passed
+python -m pytest tests/ -q     # 40 passed
 ```

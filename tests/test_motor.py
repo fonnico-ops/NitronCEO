@@ -82,3 +82,54 @@ def test_reincidencia_e_contada_por_dia(tmp_path):
     motor.rodar(cobrar=False)
     assert repo.dias_consecutivos_ruins("inadimplencia") == 1
     repo.fechar()
+
+
+def _motor_canais(tmp_path, canais, fallback=None):
+    cfg = carregar()
+    repo = Repositorio(tmp_path / "t.db")
+    saida = io.StringIO()
+    console = Console(saida)
+    motor = Motor(
+        cfg, FonteArquivo(FIXTURES), repo,
+        {c: console for c in canais}, raiz=RAIZ, fallback=fallback,
+    )
+    return motor, repo, saida
+
+
+def test_modo_so_email_nao_emudece_o_que_a_matriz_mandava_no_teams(tmp_path):
+    # 35 dos 37 KPIs mandam o nível amarelo só pelo Teams, e dois mandam o
+    # vermelho só por lá. Rodar sem Teams não pode significar que essas
+    # cobranças deixam de existir — elas saem por e-mail.
+    motor, repo, saida = _motor_canais(tmp_path, ["email"], fallback="email")
+    rodada = motor.rodar(cobrar=False)
+
+    enviadas = saida.getvalue().count("   para:")
+    assert enviadas == len(rodada.acoes_novas), "alguma ação saiu sem mensagem"
+    assert rodada.desvios, "o desvio de canal tem que ficar registrado"
+    assert ("teams", "email") in set(rodada.desvios)
+
+    texto = pulso(rodada, motor.cfg)
+    assert "Cobranças que saíram por outro canal" in texto
+    repo.fechar()
+
+
+def test_sem_fallback_o_canal_ausente_e_silencio_declarado(tmp_path):
+    # Sem fallback configurado o motor não inventa canal — mas também não
+    # finge que enviou: a ação é aberta e nada sai.
+    motor, repo, saida = _motor_canais(tmp_path, ["ghl"], fallback=None)
+    rodada = motor.rodar(cobrar=False)
+
+    assert rodada.acoes_novas
+    assert saida.getvalue().count("   para:") == 0
+    assert not rodada.desvios
+    repo.fechar()
+
+
+def test_com_teams_e_email_cada_canal_recebe_o_seu(tmp_path):
+    motor, repo, saida = _motor_canais(tmp_path, ["teams", "email"], fallback="email")
+    rodada = motor.rodar(cobrar=False)
+
+    # mais mensagens que ações: os KPIs críticos vão pelos dois canais
+    assert saida.getvalue().count("   para:") > len(rodada.acoes_novas)
+    assert not rodada.desvios, "com os dois canais no ar não há desvio"
+    repo.fechar()

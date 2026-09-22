@@ -30,26 +30,64 @@ from .repositorio import Repositorio
 from .sankhya import FonteArquivo, SankhyaREST, montar_sql
 
 
+CANAIS = ("teams", "email", "ghl")
+
+
+def _canais_pedidos(args) -> tuple[str, ...]:
+    """Quais canais ficam no ar nesta execução.
+
+    `--canais email` é o modo de produção mais curto: precisa de uma única
+    permissão no Entra ID (`Mail.Send`) em vez das quatro que o Teams exige.
+    """
+    bruto = getattr(args, "canais", None)
+    if not bruto:
+        return CANAIS
+    pedidos = tuple(c.strip().lower() for c in bruto.split(",") if c.strip())
+    desconhecidos = [c for c in pedidos if c not in CANAIS]
+    if desconhecidos:
+        raise SystemExit(
+            f"Canal desconhecido: {', '.join(desconhecidos)}. "
+            f"Disponíveis: {', '.join(CANAIS)}."
+        )
+    return pedidos
+
+
 def _montar(args) -> tuple[Motor, Repositorio]:
     cfg = carregar()
     repo = Repositorio(args.banco)
+
+    escolhidos = _canais_pedidos(args)
 
     if args.dry_run:
         fonte = FonteArquivo(Path(args.fixtures))
         notificadores = {"teams": Console(), "email": Console(), "ghl": Console()}
     else:
         fonte = SankhyaREST()
-        notificadores = {"teams": Teams(), "email": EmailOutlook()}
+        notificadores = {}
+        if "teams" in escolhidos:
+            notificadores["teams"] = Teams()
+        if "email" in escolhidos:
+            notificadores["email"] = EmailOutlook()
         # O GHL só entra se estiver configurado. Ausente, os outros canais
         # continuam entregando — ele é canal a mais, não substituto.
-        if os.getenv("GHL_TOKEN") and os.getenv("GHL_LOCATION_ID"):
+        if "ghl" in escolhidos and os.getenv("GHL_TOKEN") and os.getenv(
+            "GHL_LOCATION_ID"
+        ):
             notificadores["ghl"] = GoHighLevel()
+
+    if escolhidos != CANAIS:
+        notificadores = {c: n for c, n in notificadores.items() if c in escolhidos}
 
     redator = None
     if getattr(args, "com_renato", False):
         redator = Renato(cfg)
 
-    return Motor(cfg, fonte, repo, notificadores, redator=redator), repo
+    # Sem Teams, o fallback é o e-mail: a matriz foi escrita supondo os
+    # dois, e 35 dos 37 KPIs mandam o nível amarelo só pelo Teams.
+    fallback = "email" if "email" in notificadores else None
+
+    motor = Motor(cfg, fonte, repo, notificadores, redator=redator, fallback=fallback)
+    return motor, repo
 
 
 def cmd_rodar(args) -> int:
@@ -279,6 +317,12 @@ def main(argv: list[str] | None = None) -> int:
         sp.add_argument("--dry-run", action="store_true",
                         help="usa fixtures e imprime no console em vez de enviar")
         sp.add_argument("--fixtures", default="tests/fixtures")
+        sp.add_argument(
+            "--canais",
+            metavar="LISTA",
+            help="canais no ar, separados por vírgula (teams, email, ghl). "
+                 "Padrão: todos os configurados. Ex.: --canais email",
+        )
         return sp
 
     sp = comum(sub.add_parser("rodar", help="mede, julga, abre ações e cobra"))
