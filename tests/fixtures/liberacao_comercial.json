@@ -1,0 +1,10 @@
+[
+  {
+    "PEDIDOS_TRAVADOS": 87,
+    "VLR_TRAVADO": 505694.43,
+    "DIAS_MAX": 180,
+    "DIAS_MEDIO": 47.6,
+    "PARADOS_MAIS_30D": 52,
+    "LISTA": "(34 pedidos em PIX aguardando recebimento, o mais antigo há 180d; 42 em Tempo Inativo, o mais antigo há 139d)"
+  }
+]

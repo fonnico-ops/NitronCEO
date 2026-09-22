@@ -191,6 +191,14 @@ class Repositorio:
         )
         self.con.commit()
 
+    def totais_de_cobranca(self) -> tuple[int, int]:
+        """(cobranças disparadas, das quais escaladas) — para o painel."""
+        linha = self.con.execute(
+            "SELECT COUNT(*) AS n,"
+            " SUM(CASE WHEN rodada >= 1 THEN 1 ELSE 0 END) AS esc FROM cobrancas"
+        ).fetchone()
+        return int(linha["n"] or 0), int(linha["esc"] or 0)
+
     def cobrancas_de(self, acao_id: str) -> int:
         linha = self.con.execute(
             "SELECT COUNT(*) AS n FROM cobrancas WHERE acao_id = ?", (acao_id,)

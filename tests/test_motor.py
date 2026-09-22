@@ -27,7 +27,7 @@ def test_rodada_completa_sobre_dados_reais(tmp_path):
     motor, repo, _ = _motor(tmp_path)
     rodada = motor.rodar(cobrar=False)
 
-    assert len(rodada.sinais) == 13
+    assert len(rodada.sinais) == 23
     assert not rodada.falhas
 
     texto = pulso(rodada, motor.cfg)
@@ -43,8 +43,10 @@ def test_kpi_em_sombra_mede_mas_nao_abre_acao(tmp_path):
     sombra = {s.kpi_id for s in rodada.sinais if s.modo == "sombra"}
     abertas = {a.kpi_id for a in rodada.acoes_novas}
 
-    assert "ruptura_estoque" in sombra          # está crítico nos fixtures
-    assert not (sombra & abertas)                # e mesmo assim não cobra ninguém
+    # performance_representante está vermelho nos fixtures (26 abaixo da meta)
+    # e mesmo assim não pode cobrar ninguém enquanto estiver em sombra.
+    assert "performance_representante" in sombra
+    assert not (sombra & abertas)
     repo.fechar()
 
 
@@ -63,9 +65,13 @@ def test_resposta_encerra_a_acao(tmp_path):
     motor, repo, _ = _motor(tmp_path)
     rodada = motor.rodar(cobrar=False)
     acao = rodada.acoes_novas[0]
+    antes = len(repo.acoes_em_aberto())
 
     assert repo.registrar_resposta(acao.id, "Plano enviado, protesto na quinta.")
-    assert not repo.acoes_em_aberto()
+
+    abertas = repo.acoes_em_aberto()
+    assert len(abertas) == antes - 1
+    assert acao.id not in {a.id for a in abertas}
     repo.fechar()
 
 

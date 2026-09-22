@@ -1,5 +1,10 @@
 # Quem responde por quê. O motor não sabe cobrar ninguém sem este arquivo.
 #
+# `nome` traz o PAPEL, que já é conhecido. O que falta preencher é a pessoa
+# e o endereço real — troque o nome do papel pelo nome de quem responde e o
+# e-mail genérico pelo individual, senão a cobrança chega numa caixa coletiva
+# e ninguém se sente o dono.
+#
 # `teams_id`  -> e-mail/UPN do Microsoft 365 (o mesmo usado no Teams).
 # `escalonar_para` -> para quem a cobrança sobe quando o SLA estoura.
 # O CEO é sempre o último degrau: se chegou nele, o processo falhou antes.
@@ -12,37 +17,37 @@ papeis:
     escalonar_para: null
 
   diretor_comercial:
-    nome: "(preencher)"
+    nome: Diretoria Comercial
     teams_id: comercial@nitron.com.br
     email: comercial@nitron.com.br
     escalonar_para: ceo
 
   gerente_producao:
-    nome: "(preencher)"
+    nome: Gerência de Produção
     teams_id: producao@nitron.com.br
     email: producao@nitron.com.br
     escalonar_para: ceo
 
   pcp:
-    nome: "(preencher)"
+    nome: PCP
     teams_id: pcp@nitron.com.br
     email: pcp@nitron.com.br
     escalonar_para: gerente_producao
 
   logistica:
-    nome: "(preencher)"
+    nome: Logística
     teams_id: expedicao@nitron.com.br
     email: expedicao@nitron.com.br
     escalonar_para: ceo
 
   financeiro:
-    nome: "(preencher)"
+    nome: Financeiro
     teams_id: financeiro@nitron.com.br
     email: financeiro@nitron.com.br
     escalonar_para: ceo
 
   qualidade:
-    nome: "(preencher)"
+    nome: Qualidade
     teams_id: qualidade@nitron.com.br
     email: qualidade@nitron.com.br
     escalonar_para: gerente_producao

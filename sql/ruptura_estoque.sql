@@ -2,26 +2,32 @@
 -- Pergunta: quanto de venda está parada esperando o PCP produzir?
 --
 -- DEMANDA: carteira roteirizável, na definição da skill de roteirização —
---   TIPMOV='P', STATUSNOTA='L', PENDENTE='S', sem ordem de carga,
---   com corte temporal (existem ~27 mil pedidos pendentes desde 2020;
---   sem o corte a análise vira arqueologia).
+--   TIPMOV='P', STATUSNOTA='L', PENDENTE='S', sem ordem de carga, com corte
+--   temporal (há ~27 mil pedidos pendentes desde 2020; sem o corte a análise
+--   vira arqueologia).
 --
--- SALDO: TGFEST somado por CODPROD.
+-- SALDO — A CORREÇÃO QUE MUDA TUDO (apurada em 22/09/2026):
+--   `CODLOCAL = 1080000` ("Estoque para Transferência") é conta de
+--   CONTRAPARTIDA e fica negativa por construção. Somá-la destrói o saldo:
+--     PA DE LIXO COM CABO (268), saldo por local na empresa 2:
+--       CODLOCAL 1080000 "Estoque p/ Transferência"  -158.364  <- contrapartida
+--       CODLOCAL 2990314 "Preparação 14"              +21.444
+--       CODLOCAL 2071101 "G1101"                       +3.696
+--       (demais endereços)                            ...
+--     Somando tudo: -123.641 unidades (absurdo, o item é campeão de venda).
+--     Excluindo a 1080000:  +28.241 unidades (real).
+--   A primeira versão deste KPI somava a 1080000 e acusava 460 itens em
+--   ruptura. Com o filtro correto o número cai para a casa das dezenas.
 --
--- POR QUE ESTE KPI NASCE EM SOMBRA — quatro problemas de dado, todos
--- confirmados em produção em 22/09/2026:
---   1. TGFEST na CODEMP 1 tem 12,5 MILHÕES de linhas e soma 3×10^19 unidades.
---      Dado histórico corrompido, inutilizável como saldo.
---   2. CODEMP 4 (-248.978) e CODEMP 14 (-428.911) somam saldo NEGATIVO.
---   3. TGFEST.QTDPEDPENDEST está 100% zerado — não serve como demanda.
---   4. Pedido que falta no CD (CODEMP 2) mas tem saldo na produção NÃO é
---      ruptura: é transferência interna do mesmo endereço.
+--   Ainda restam endereços físicos com saldo negativo (ex.: H1401 -19.248).
+--   Esses são inconsistência real de endereçamento, e NÃO são escondidos
+--   aqui: entram na soma (deprimindo o saldo) e são contados em
+--   ENDERECOS_NEGATIVOS, que é sinal para o WMS, não para o PCP.
 --
--- Com {{CODEMP_SALDO}}=2 o resultado em 22/09/26 foi 460 itens sem saldo e
--- R$ 1.577.274,91 de carteira exposta — número alto demais para cobrar o PCP
--- sem antes acordar qual empresa é a fonte de saldo por linha de produto.
+-- CODEMP 1 continua fora da fonte de saldo: 12,5 milhões de linhas somando
+-- 3×10^19 unidades — dado histórico corrompido.
 --
--- Params: {{CODEMP}}  {{CODEMP_SALDO}}  {{CARTEIRA_DIAS}}
+-- Params: {{CODEMP}}  {{CODEMP_SALDO}}  {{CARTEIRA_DIAS}}  {{LOCAL_TRANSFERENCIA}}
 
 WITH CARTEIRA AS (
   SELECT I.CODPROD,
@@ -41,9 +47,13 @@ SALDO AS (
   -- Saldo físico, não ESTOQUE-RESERVADO: RESERVADO já contém os pedidos
   -- pendentes que estamos avaliando, e subtrair duas vezes manda pedido bom
   -- para a fila de ruptura.
-  SELECT CODPROD, SUM(NVL(ESTOQUE,0)) AS FISICO
+  SELECT CODPROD,
+         SUM(NVL(ESTOQUE,0)) AS FISICO,
+         SUM(CASE WHEN ESTOQUE < 0 THEN 1 ELSE 0 END) AS ENDERECOS_NEG
     FROM TGFEST
-   WHERE CODEMP IN ({{CODEMP_SALDO}}) AND NVL(ATIVO,'S') = 'S'
+   WHERE CODEMP IN ({{CODEMP_SALDO}})
+     AND CODLOCAL <> {{LOCAL_TRANSFERENCIA}}
+     AND NVL(ATIVO,'S') = 'S'
    GROUP BY CODPROD
 )
 SELECT
@@ -55,6 +65,8 @@ SELECT
   (SELECT ROUND(NVL(SUM(C.VLR),0),2) FROM CARTEIRA C
      LEFT JOIN SALDO S ON S.CODPROD = C.CODPROD
     WHERE NVL(S.FISICO,0) < C.QTD_PEDIDA)                            AS VLR_EM_RISCO,
+  (SELECT NVL(SUM(S.ENDERECOS_NEG),0) FROM CARTEIRA C
+     JOIN SALDO S ON S.CODPROD = C.CODPROD)                          AS ENDERECOS_NEGATIVOS,
   (SELECT LISTAGG(P.DESCRPROD || ' (R$ ' || ROUND(X.VLR) || ')', ', ')
           WITHIN GROUP (ORDER BY X.VLR DESC)
      FROM (SELECT C.CODPROD, C.VLR FROM CARTEIRA C

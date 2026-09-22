@@ -104,7 +104,47 @@ cadastro, não de SQL** — e é barata.
 
 ---
 
-## 6. Estoque — a CODEMP 1 está corrompida
+## 6. Estoque — a conta de transferência destruía o saldo
+
+**Este é o achado mais caro da apuração, e invalidava um KPI já entregue.**
+
+`CODLOCAL = 1080000` ("Estoque para Transferência") é conta de
+**contrapartida**: fica negativa por construção. Somar todos os `CODLOCAL`
+inverte o sinal do saldo dos itens de maior giro.
+
+`PA DE LIXO COM CABO (268)`, campeão de venda, na empresa 2:
+
+| CODLOCAL | Local | Estoque |
+|---|---|---|
+| 1080000 | Estoque para Transferência | **−158.364** ← contrapartida |
+| 2990314 | Preparação 14 | +21.444 |
+| 2990301 | Preparação 1 | +7.584 |
+| 2071101 | G1101 | +3.696 |
+| … | demais endereços | … |
+
+Somando tudo: **−123.641 unidades**. Excluindo a 1080000: **+28.241**.
+
+Efeito nos KPIs, depois da correção:
+
+| KPI | Antes (errado) | Depois |
+|---|---|---|
+| Ruptura de estoque | 460 itens / R$ 1.577.274,91 | **92 itens / R$ 287.768,76** |
+| Produtos com cobertura curta | 653 de 891 | **129 de 891** |
+
+Sobram **4.347 endereços físicos com saldo negativo** (ex.: H1401 −19.248).
+Isso é inconsistência real de endereçamento e não é escondido: entra na soma
+e sai na coluna `ENDERECOS_NEGATIVOS`. É sinal para o WMS, não para o PCP.
+
+### O mínimo de cadastro não existe
+
+`TGFEST.ESTMIN` está **100% zerado** em 2, 4 e 14 (31.631 linhas, nenhuma com
+mínimo). Por isso "pouco estoque" é derivado do giro — saldo dividido pela
+venda média diária de 90 dias. É melhor que o mínimo de cadastro: acompanha
+sazonalidade sozinha, em vez de envelhecer numa tela que ninguém revisa.
+
+---
+
+## 6b. Estoque — a CODEMP 1 está corrompida
 
 `TGFEST` por empresa:
 
@@ -198,3 +238,171 @@ Isto é **compromisso a vencer**, não saldo de caixa: não inclui o saldo
 bancário inicial. Para virar fluxo de caixa de verdade, somar o saldo de
 `TGFCTA`/`TGFMOV`. Até lá, o número serve para medir **tendência e gap**, não
 para dizer se a conta vira.
+
+
+---
+
+## 11. Fila de liberação — 155 pedidos parados, alguns há 6 meses
+
+`TSILIB` é a fila de decisão. Pendente = `DHLIB IS NULL` **e**
+`REPROVADO = 'N'`: quem foi reprovado saiu da fila, quem foi liberado tem
+`DHLIB`; só os dois nulos são decisão não tomada.
+
+Situação em 22/09/2026 (janela de 180 dias, tudo sobre `TGFCAB`):
+
+| Evento | Descrição | Pendentes | Valor | Mais antigo |
+|---|---|---|---|---|
+| 9 | Tempo Inativo | 42 | R$ 264.488,21 | **139 dias** |
+| 1004 | PIX — Aguardando Recebimento | 34 | R$ 185.710,07 | **180 dias** |
+| 8 | Atraso | 29 | R$ 341.089,27 | 35 dias |
+| 15 | Limite Créd. Mensal | 25 | R$ 260.468,33 | 32 dias |
+| 3 | Limite de Crédito | 14 | R$ 153.931,06 | 32 dias |
+| 13 | Valor Mínimo Tipo Negoc. | 4 | R$ 7.190,47 | 67 dias |
+| 44 | Liberação exigida pela TOP | 3 | R$ 39.654,78 | 67 dias |
+| 18 | Confirmação de Nota | 3 | R$ 664,95 | 7 dias |
+| 12 | Frete CIF | 1 | R$ 7.985,95 | 0 dias |
+
+**Total: 155 pedidos, R$ 1.261.183,09.**
+
+Um pedido parado há 180 dias esperando confirmação de PIX não é fila — é
+pedido que ninguém decidiu recusar. A matriz separa a fila em dois donos
+(crédito → financeiro; o resto → comercial) e mede **dias do mais antigo**,
+não a contagem: 30 pedidos parados há 2 dias é operação normal; 1 parado há
+180 dias é dinheiro que já evaporou.
+
+---
+
+## 12. NTR Log — R$ 785 mil por mês de frete pago sem nota no ERP
+
+**O maior número da apuração.**
+
+NTR Log é `CODEMP 3` / `CODPARC 65253`: empresa do grupo **dentro** do recorte
+Nitron (1,2,3,4,14,17,20), e por isso some nas consolidações que eliminam
+intercompany. Foi assim que a lacuna passou despercebida.
+
+Lado A — o que a Nitron lança como frete NTR (`TGFFIN`, natureza 9010107,
+`RECDESP=-1`, não-provisão):
+
+| Mês | Títulos | Valor lançado | Baixados (pagos) | Com `NUNOTA` |
+|---|---|---|---|---|
+| mar/26 | 680 | R$ 792.376,86 | R$ 765.841,31 | **0** |
+| abr/26 | 708 | R$ 812.491,40 | R$ 783.000,00 | **0** |
+| mai/26 | 534 | R$ 675.456,23 | R$ 655.494,90 | **0** |
+| jun/26 | 571 | R$ 799.055,02 | R$ 769.733,97 | **0** |
+| jul/26 | 552 | R$ 774.065,20 | R$ 747.617,81 | **0** |
+| ago/26 | 636 | R$ 842.709,40 | R$ 821.142,28 | **0** |
+| set/26 | 561 | R$ 600.449,66 | R$ 579.599,23 | **0** |
+
+Lado B — o que a NTR Log emite (`TGFCAB`, `CODEMP 3`): **R$ 21 mil a R$ 29 mil
+por mês**. Em agosto: R$ 21.567,12 contra R$ 842.709,40 pagos — cobertura de
+**2,6%**, gap de R$ 821.142,28 no mês.
+
+E não há NFS-e: `TGFNFSE` não tem nenhum registro para as empresas 1, 2, 3, 8,
+14 ou 21 nos últimos 6 meses.
+
+**O que isto prova:** o ERP registra despesa lançada e paga, todo mês, sem
+nenhuma nota fiscal vinculada.
+**O que isto NÃO prova:** que a nota não existe. Pode ter sido emitida na
+prefeitura e nunca importada para o ERP. Essa é exatamente a pergunta que a
+ação do KPI manda o financeiro responder — por isso ela pede a **conciliação**,
+não a conclusão.
+
+---
+
+## 13. Devedores que continuam comprando
+
+Consolidando por `TGFPAR.CODPARCMATRIZ` (filial que deve e matriz que compra
+são o mesmo risco), com piso de R$ 50 mil:
+
+- **14 devedores** somando **R$ 1.804.739,47** vencidos
+- **7 deles ainda comprando**
+- A Nitron faturou **R$ 1.511.887,35 para devedores** nos últimos 30 dias
+
+Os casos que explicam o KPI:
+
+| Cliente | Deve | Atraso | Comprou em 30d |
+|---|---|---|---|
+| 001 - INTERLAGOS - SP | R$ 418.413 | 286 dias | **R$ 563.204** |
+| KALUNGA SA | R$ 253.176 | 30 dias | **R$ 366.993** |
+| TUBARAO 65 | R$ 284.404 | 120 dias | — |
+| VINICIUS MASSARU KATO | R$ 102.891 | 150 dias | R$ 5.095 |
+
+Por isso a métrica do KPI é **"ainda comprando"**, não o valor devido: devedor
+que parou de comprar é caso de cobrança; devedor que continua comprando é
+falha de bloqueio, e a ação é outra — travar o crédito, não ligar de novo.
+
+---
+
+## 14. Gastos fora do padrão
+
+Comparando cada `CODNAT` de despesa em ago/26 contra a própria média de 12
+meses (piso de relevância R$ 50 mil de média mensal):
+
+| Natureza | Mês fechado | Média 12M | % |
+|---|---|---|---|
+| Emprestimos e Financiamentos | R$ 4.678.714 | R$ 1.763.563 | **265%** |
+| Injeção Tercerizada | R$ 578.941 | R$ 309.947 | 187% |
+| Embalagens | R$ 274.954 | R$ 149.942 | 183% |
+| Adiantamento a Fornecedores | R$ 485.055 | R$ 347.260 | 140% |
+| Lucros e Dividendos Distribuidos | R$ 796.227 | R$ 583.610 | 136% |
+| Devoluções de vendas | R$ 350.774 | R$ 267.292 | 131% |
+
+**8 naturezas estouradas, R$ 3.810.939,21 acima do padrão.**
+
+### Por que a razão despesa/faturamento fica em sombra
+
+A despesa bruta da `TGFFIN` roda entre R$ 10,6 mi e R$ 15,2 mi por mês contra
+faturamento de R$ 7,5 mi — a razão passa de **190%**, e isso não significa
+prejuízo: os dois lados não são comparáveis. A despesa inclui matéria-prima,
+empréstimos, dividendos, impostos e movimento entre as 7 empresas do recorte;
+o faturamento usa a âncora `ATUALCOM='C'`, que é só receita de venda.
+
+**Para ativar:** a controladoria define quais naturezas compõem "despesa
+operacional" (fora 4010203 Empréstimos, 7010101 Dividendos, 8010700
+Adiantamentos e as de imposto). Só então o percentual significa alguma coisa.
+
+---
+
+## 15. Produtos que pararam de vender
+
+90 dias contra os 90 anteriores, por produto, em valor, contando só quem
+**tinha** performance no período base (piso de R$ 20 mil — sem ele a cauda
+longa inunda a lista):
+
+- 1.071 produtos com movimento
+- **129 em queda acima de 30%**, 70 acima de 50%, 7 pararam de vender
+- **R$ 3.921.906,88** a menos do que o mesmo conjunto gerava antes
+
+Os cinco maiores:
+
+| Produto | Antes | Agora | Restou |
+|---|---|---|---|
+| LIXEIRA RATTAN COM PEDAL - BRANCA 6L | R$ 285.623 | R$ 135.219 | 47% |
+| GAVETEIRO COM 4 GAVETAS - PRETA | R$ 218.368 | R$ 94.631 | 43% |
+| PORTA PAO ARMAZENA E CONSERVA 2,7L | R$ 168.234 | R$ 86.764 | 52% |
+| PORTA FRIOS COM PINCA 1,1L | R$ 152.851 | R$ 75.622 | 49% |
+| ESCORREDOR DE PRATOS - PRETO | R$ 136.950 | R$ 47.446 | 35% |
+
+---
+
+## 16. Teak Brazil — uma das duas empresas nunca emitiu
+
+`CODEMP 8` (São Paulo) e `CODEMP 21` (Rondônia), mesma razão social, fora do
+recorte Nitron — não aparecem em nenhum outro KPI.
+
+| Mês | Notas (CODEMP 8) | Valor |
+|---|---|---|
+| mar/26 | 5 | R$ 119.537,71 |
+| abr/26 | 2 | R$ 272.792,00 |
+| mai/26 | **1** | R$ 19.830,40 |
+| jun/26 | 11 | R$ 240.806,91 |
+| jul/26 | 13 | R$ 298.119,32 |
+| ago/26 | 18 | R$ 321.095,22 |
+| set/26 | 10 | R$ 170.882,56 |
+
+**CODEMP 21 (Rondônia): zero emissão em 6 meses.**
+
+A métrica do KPI é **dias sem emitir**, não o valor: o padrão da Teak é
+irregular por natureza (1 nota em maio, 18 em agosto), então cobrar variação
+de valor dispararia alarme toda semana. O que é anômalo é o silêncio — maio
+teve uma nota só, e isso deveria ter sido percebido na época.

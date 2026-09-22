@@ -3,35 +3,49 @@
 Uma matriz que mede o negócio, julga o que está fora da linha, **abre ação com
 dono e prazo**, e **cobra quem não responde** — por Teams e e-mail.
 
-Não é um dashboard. O cockpit do Sankhya já mostra os números. O que não existe
-é o que acontece **depois** do número ficar vermelho.
+O cockpit do Sankhya já mostra os números. O que não existia é o que acontece
+**depois** do número ficar vermelho — e é isso que este repositório é:
 
 ```
 medir → julgar → atribuir → cobrar → escalar → registrar
 ```
 
+Tem painel (`nitronceo dashboard`), mas o painel mostra o **pipeline de
+cobranças**: de quem está a bola, há quanto tempo, e em que degrau da escada.
+Um indicador que não chega até `cobrar` não entra na matriz.
+
 ---
 
 ## Estado hoje
 
-13 KPIs. **8 cobram. 5 estão em sombra** — medem e aparecem no pulso, mas não
+23 KPIs. **18 cobram. 5 estão em sombra** — medem e aparecem no pulso, mas não
 notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 
 | KPI | Área | Dono | Estado |
 |---|---|---|---|
-| Ritmo de faturamento | Comercial | Diretor comercial | ✅ cobra |
-| Ritmo de entrada de pedidos | Comercial | Diretor comercial | ✅ cobra |
+| Ritmo de faturamento | Comercial | Diretoria Comercial | ✅ cobra |
+| Ritmo de entrada de pedidos | Comercial | Diretoria Comercial | ✅ cobra |
+| Pedidos esperando aprovação ou recusa | Comercial | Diretoria Comercial | ✅ cobra |
+| Produtos que pararam de vender | Comercial | Diretoria Comercial | ✅ cobra |
 | Ordens de carga montadas/dia | Logística | Logística | ✅ cobra |
 | Notas devolvidas | Qualidade | Qualidade | ✅ cobra |
 | Reentradas / refaturamento | Qualidade | Qualidade | ✅ cobra |
-| Injetoras paradas agora | Produção | Gerente de produção | ✅ cobra |
+| Injetoras paradas agora | Produção | Gerência de Produção | ✅ cobra |
+| Produtos com estoque curto | PCP | PCP | ✅ cobra |
+| O que o PCP precisa programar | PCP | PCP | ✅ cobra |
+| Ruptura de estoque na carteira | PCP | PCP | ✅ cobra |
 | Fluxo de caixa D0–D30 | Financeiro | Financeiro | ✅ cobra |
 | Recebíveis vencidos | Financeiro | Financeiro | ✅ cobra |
-| Performance por representante | Comercial | Diretor comercial | 🌓 sombra |
-| Performance por canal | Comercial | Diretor comercial | 🌓 sombra |
+| Grandes devedores | Financeiro | Financeiro | ✅ cobra |
+| Pedidos travados no crédito | Financeiro | Financeiro | ✅ cobra |
+| Naturezas de despesa fora do padrão | Financeiro | Financeiro | ✅ cobra |
+| Emissão da NTR Log contra o frete pago | Financeiro | Financeiro | ✅ cobra |
+| Emissão da Teak Brazil | Financeiro | Financeiro | ✅ cobra |
+| Performance por representante | Comercial | Diretoria Comercial | 🌓 sombra |
+| Performance por canal | Comercial | Diretoria Comercial | 🌓 sombra |
 | Entregas reagendadas | Logística | Logística | 🌓 sombra |
-| Tempo de setup das injetoras | Produção | Gerente de produção | 🌓 sombra |
-| Ruptura de estoque | PCP | PCP | 🌓 sombra |
+| Tempo de setup das injetoras | Produção | Gerência de Produção | 🌓 sombra |
+| Despesa sobre faturamento | Financeiro | Financeiro | 🌓 sombra |
 
 O porquê de cada sombra — e o que destrava cada uma — está em
 [`docs/achados-de-dados.md`](docs/achados-de-dados.md).
@@ -58,6 +72,17 @@ nitronceo pendentes
 nitronceo responder a1b2c3d4e5f6 "Protesto entra quinta; top 3 já em acordo."
 ```
 
+### Dashboard
+
+```bash
+nitronceo dashboard --dry-run -o dashboard.html
+```
+
+Gera o painel do pipeline: os 23 indicadores por área, a esteira
+`medido → fora da linha → cobrável → ação → cobrado → escalado → respondido`,
+as cobranças abertas com dono e prazo, e o que está em sombra. Tema claro e
+escuro, funciona no celular.
+
 O `--dry-run` usa `tests/fixtures/`, que contém o **resultado real** das
 queries em produção. O pulso que ele imprime é o estado verdadeiro da empresa
 naquele dia:
@@ -65,10 +90,13 @@ naquele dia:
 ```
 ## Pulso Nitron — 22/09/2026
 
-🚨 Produtos sem estoque com pedido na carteira: R$ 1.708.498,49 (sombra)
+🚨 Pedidos esperando aprovação ou recusa: 180 dias parados
+🚨 Emissão da NTR Log contra o frete pago: 2.6%
+🚨 Grandes devedores que ainda compram: 7
+🚨 Naturezas de despesa fora do padrão: R$ 3.810.939,21
 🔴 Recebíveis vencidos: R$ 9.728.499,68
+🔴 Produtos que pararam de vender: R$ 3.921.906,88
 🟡 Fluxo de caixa dos próximos 7 dias: R$ -142.357,40
-🟡 Ritmo de entrada de pedidos: 91.8%
 🟢 Ritmo de faturamento: 107.7%
 🟢 Notas devolvidas: 0.5%
 🟢 Injetoras paradas agora: 1
@@ -117,6 +145,10 @@ que mais mudam resultado:
   subconta ~65% do faturamento, porque a tabela é versionada por `DHALTER`.
 - **Devolução exclui a TOP 2203** ("Devolução Simbólica Consignado"). Com ela
   dentro, a devolução aparece perto de 11% do faturamento; sem ela, 0,53%.
+- **Saldo de estoque exclui o `CODLOCAL 1080000`** ("Estoque para
+  Transferência"), que é conta de contrapartida e fica negativa por
+  construção. Com ela dentro, o campeão de venda aparecia com −123.641
+  unidades em estoque.
 
 Base metodológica: skill `sankhya-especialista` do Grupo Nitron.
 
@@ -135,8 +167,9 @@ src/nitronceo/
   cobranca.py           a escada: dono → gestor → CEO → para
   repositorio.py        SQLite: sinais, ações, cobranças
   motor.py              orquestração + pulso do CEO
+  dashboard.py          painel do pipeline em HTML (claro/escuro)
   notificadores/        console (dry-run), Teams e Outlook via Graph
-tests/                  20 testes; fixtures com dados reais de produção
+tests/                  20 testes; 23 fixtures com dados reais de produção
 docs/                   arquitetura, governança, achados de dados
 ```
 

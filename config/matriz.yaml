@@ -334,7 +334,7 @@ kpis:
   horario: "07:30"
   metrica: VLR_EM_RISCO
   unidade: reais
-  avaliacao: { tipo: limite_superior, verde: 300000, amarelo: 800000, vermelho: 1500000 }
+  avaliacao: { tipo: limite_superior, verde: 150000, amarelo: 400000, vermelho: 800000 }
   dono: pcp
   canal_teams: producao
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
@@ -345,19 +345,19 @@ kpis:
       - "Quais dependem de MP e qual a data de chegada."
       - "Quais são transferência do CD (não são ruptura) — separe-os."
     sla_resposta_horas: 4
-  status_dado: calibrar
-  modo: sombra
+  status_dado: validado
+  modo: ativo
   observacao: >
-    Roda e dá número (22/09/26: 460 itens sem saldo, R$ 1.577.274,91 de carteira
-    exposta), mas o SALDO ainda não é confiável o bastante para cobrar o PCP:
-    - TGFEST na CODEMP 1 tem 12,5 milhões de linhas e soma 3×10^19 unidades —
-      dado histórico corrompido. Inutilizável.
-    - CODEMP 4 e 14 somam saldo NEGATIVO no total.
-    - TGFEST.QTDPEDPENDEST está 100% zerado, então a demanda tem que vir de
-      TGFITE sobre pedidos pendentes.
-    - Parte do que aparece como ruptura é transferência interna CD->produção,
-      que a skill de roteirização trata como NÃO-ruptura.
-    Calibrar com o PCP qual empresa é a fonte de saldo por linha de produto.
+    CORRIGIDO EM 22/09/26. A primeira versão somava CODLOCAL 1080000
+    ("Estoque para Transferência"), que é conta de CONTRAPARTIDA e fica
+    negativa por construção — o PA DE LIXO (268), campeão de venda, aparecia
+    com -123.641 unidades. Com a 1080000 fora, o mesmo item tem +28.241.
+    Efeito no KPI: de 460 itens / R$ 1.577.274,91 para 92 itens /
+    R$ 287.768,76. Agora é número que dá para cobrar o PCP.
+    Sobram 4.347 endereços físicos com saldo negativo na carteira — isso é
+    inconsistência de endereçamento e é sinal para o WMS, não para o PCP;
+    sai na coluna ENDERECOS_NEGATIVOS.
+    CODEMP 1 segue fora da fonte de saldo (12,5 mi de linhas somando 3e19).
 
 # ---------------------------------------------------------------------------
 # FINANCEIRO
@@ -423,3 +423,341 @@ kpis:
   modo: ativo
   observacao: >
     22/09/26: R$ 9.728.499,68 em 3.352 títulos vencidos nos últimos 365 dias.
+
+# ---------------------------------------------------------------------------
+# PIPELINE DE PEDIDO — liberação e decisão
+# ---------------------------------------------------------------------------
+
+- id: liberacao_credito
+  titulo: Pedidos travados no crédito
+  pergunta: Quantos pedidos esperam decisão de crédito, e há quanto tempo?
+  area: financeiro
+  sql: sql/liberacao_credito.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: DIAS_MAX
+  unidade: contagem
+  avaliacao: { tipo: limite_superior, verde: 3, amarelo: 7, vermelho: 15 }
+  dono: financeiro
+  canal_teams: financeiro
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "Pedido parado há {valor} dias esperando crédito"
+    passos:
+      - "Para cada nome da lista: libera, recusa ou pede garantia. Escolha uma."
+      - "Se o cliente não tem limite, diga qual limite resolveria e quem aprova."
+      - "Pedido que envelhece sem decisão é venda perdida com custo de análise."
+    sla_resposta_horas: 4
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    TSILIB, eventos 3 (Limite de Crédito), 15 (Limite Créd. Mensal) e 8
+    (Atraso). Pendente = DHLIB nulo E REPROVADO='N'.
+    Aferido 22/09/26: 68 pedidos travados, R$ 754.488,66; o mais antigo há 35
+    dias (KALUNGA SA, R$ 34.174, motivo Atraso); 24 parados há mais de 7 dias.
+    A métrica é DIAS_MAX e não a contagem de propósito: 30 pedidos parados há
+    2 dias é fila normal; 1 parado há 35 dias é cliente que já desistiu.
+
+- id: liberacao_comercial
+  titulo: Pedidos esperando aprovação ou recusa
+  pergunta: O que o comercial deixou de decidir?
+  area: comercial
+  sql: sql/liberacao_comercial.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: DIAS_MAX
+  unidade: contagem
+  avaliacao: { tipo: limite_superior, verde: 7, amarelo: 20, vermelho: 45 }
+  dono: diretor_comercial
+  canal_teams: comercial
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "Pedido parado há {valor} dias sem aprovação nem recusa"
+    passos:
+      - "Libere ou recuse. Deixar envelhecer não é a terceira opção."
+      - "Os de PIX aguardando recebimento: o dinheiro entrou ou não entrou?"
+      - "Se o pedido morreu, recuse formalmente — some da fila e some do forecast."
+    sla_resposta_horas: 8
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    TSILIB, todos os eventos que não são de crédito: 9 (Tempo Inativo),
+    1004 (PIX Aguardando Recebimento), 13 (Valor Mínimo), 44 (Liberação pela
+    TOP), 12 (Frete CIF), 18 (Confirmação de Nota).
+    Aferido 22/09/26: 87 pedidos travados, R$ 505.694,43. O mais antigo há
+    180 DIAS (PIX aguardando recebimento) e 42 pedidos em "Tempo Inativo",
+    o mais velho há 139 dias. Isso não é fila — é pedido que ninguém decidiu
+    recusar.
+
+# ---------------------------------------------------------------------------
+# PCP — planejamento de reposição
+# ---------------------------------------------------------------------------
+
+- id: cobertura_estoque
+  titulo: Produtos com estoque curto
+  pergunta: Quantos produtos vão acabar antes de a produção repor?
+  area: pcp
+  sql: sql/cobertura_estoque.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: COB_ABAIXO_ALERTA
+  unidade: contagem
+  avaliacao: { tipo: limite_superior, verde: 80, amarelo: 130, vermelho: 200 }
+  dono: pcp
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "{valor} produtos com menos de 15 dias de cobertura"
+    passos:
+      - "Quantos destes já estão na programação da semana."
+      - "Dos que não estão: falta molde, máquina ou matéria-prima?"
+      - "Se a cobertura caiu por pico de venda, avise o comercial."
+    sla_resposta_horas: 8
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    TGFEST.ESTMIN está 100% ZERADO — o mínimo de cadastro não existe na
+    prática, então cobertura é derivada do giro (saldo / venda média diária
+    de 90 dias). É melhor que o mínimo: acompanha sazonalidade sozinha.
+    Aferido 22/09/26: 891 produtos com giro, 129 com cobertura abaixo de
+    7 dias, 138 abaixo de 15, R$ 455.469,99 de venda mensal exposta.
+    Saldo exclui CODLOCAL 1080000 (conta de transferência) — sem esse filtro
+    apareciam 653 produtos sem saldo em vez de 129.
+
+- id: demanda_alta_estoque_baixo
+  titulo: O que o PCP precisa programar
+  pergunta: Dos produtos que mais vendem, quais estão perto de faltar?
+  area: pcp
+  sql: sql/demanda_alta_estoque_baixo.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: VLR_MES_EXPOSTO
+  unidade: reais
+  avaliacao: { tipo: limite_superior, verde: 150000, amarelo: 400000, vermelho: 800000 }
+  dono: pcp
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "R$ {valor} de venda mensal em itens de alto giro prestes a faltar"
+    passos:
+      - "Ordem de produção para os 5 primeiros da lista, com data."
+      - "Se não cabe na capacidade da semana, diga o que sai para eles entrarem."
+      - "Item que aparece nesta lista 3 semanas seguidas: o lote está errado."
+    sla_resposta_horas: 4
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Cruza topo de demanda (por valor, 90 dias) com cobertura curta. Piso de
+    relevância separa a pauta do ruído: item de R$ 200/mês com 3 dias de
+    cobertura não é problema do PCP; item de R$ 80 mil/mês com 5 dias é.
+
+# ---------------------------------------------------------------------------
+# FINANCEIRO — cobrança nominal e controle de gasto
+# ---------------------------------------------------------------------------
+
+- id: inadimplentes_criticos
+  titulo: Grandes devedores
+  pergunta: Quem deve muito, há quanto tempo, e ainda está comprando?
+  area: financeiro
+  sql: sql/inadimplentes_criticos.sql
+  frequencia: semanal
+  dia_semana: seg
+  horario: "08:00"
+  metrica: AINDA_COMPRANDO
+  unidade: contagem
+  avaliacao: { tipo: limite_superior, verde: 1, amarelo: 3, vermelho: 6 }
+  dono: financeiro
+  canal_teams: financeiro
+  notificar: { verde: [], amarelo: [teams, email], vermelho: [teams, email] }
+  acao:
+    titulo: "{valor} grandes devedores continuam comprando"
+    passos:
+      - "Para cada um: por que o crédito não está bloqueado?"
+      - "Se a venda é estratégica e a decisão foi consciente, quem decidiu e até quando vale."
+      - "Os que não compram mais: estágio da cobrança e data do protesto."
+    sla_resposta_horas: 24
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Consolida por TGFPAR.CODPARCMATRIZ — filial que deve e matriz que compra
+    são o mesmo risco. (CODGRUPO está zerado na base e não serve.)
+    Aferido 22/09/26 (piso R$ 50 mil): 14 devedores somando R$ 1.804.739,47;
+    7 deles AINDA COMPRANDO, e a Nitron faturou R$ 1.511.887,35 para
+    devedores nos últimos 30 dias. O caso extremo: INTERLAGOS-SP deve
+    R$ 418.413 há 286 dias e comprou R$ 563.204 no mês.
+    A métrica é "ainda comprando", não o valor devido: devedor que parou de
+    comprar é caso de cobrança; devedor que continua comprando é falha de
+    bloqueio, e a ação é outra.
+
+- id: gastos_acima_media
+  titulo: Naturezas de despesa fora do padrão
+  pergunta: Qual gasto estourou o próprio histórico no mês fechado?
+  area: financeiro
+  sql: sql/gastos_acima_media.sql
+  frequencia: mensal
+  dia_mes: 5
+  horario: "08:00"
+  metrica: EXCESSO_TOTAL
+  unidade: reais
+  avaliacao: { tipo: limite_superior, verde: 500000, amarelo: 1500000, vermelho: 3000000 }
+  dono: financeiro
+  canal_teams: financeiro
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "R$ {valor} de despesa acima do padrão histórico"
+    passos:
+      - "Para cada natureza da lista: o estouro foi decisão ou descontrole?"
+      - "O que foi decisão, quem decidiu e o retorno esperado."
+      - "O que foi descontrole, qual o teto daqui para frente."
+    sla_resposta_horas: 48
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Compara cada CODNAT contra a própria média de 12 meses, com piso de
+    relevância — sem o piso, natureza de R$ 300 que virou R$ 900 aparece como
+    "+200%" e enterra o alerta que importa.
+    Aferido 22/09/26 (ago/26 vs média 12M): Empréstimos e Financiamentos
+    R$ 4.678.713 contra média de R$ 2.153.038 (+117%); Injeção Terceirizada
+    +72%; Fretes NTR +28%; Lucros e Dividendos +31%.
+
+- id: despesa_sobre_faturamento
+  titulo: Despesa sobre faturamento
+  pergunta: A despesa está crescendo mais rápido que a receita?
+  area: financeiro
+  sql: sql/despesa_sobre_faturamento.sql
+  frequencia: mensal
+  dia_mes: 5
+  horario: "08:00"
+  metrica: PCT_VS_PADRAO
+  unidade: percentual
+  avaliacao: { tipo: limite_superior, verde: 105, amarelo: 115, vermelho: 130 }
+  dono: financeiro
+  canal_teams: financeiro
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams] }
+  acao:
+    titulo: "Razão despesa/faturamento em {valor}% do padrão de 12 meses"
+    passos:
+      - "Qual natureza puxou a razão para cima."
+      - "É custo variável acompanhando a venda, ou fixo crescendo sozinho?"
+    sla_resposta_horas: 48
+  status_dado: calibrar
+  modo: sombra
+  observacao: >
+    Roda, mas o percentual absoluto não é interpretável: a despesa bruta da
+    TGFFIN roda entre R$ 10,6 mi e R$ 15,2 mi/mês contra faturamento de
+    R$ 7,5 mi, porque inclui matéria-prima, empréstimos, dividendos, impostos
+    e movimento entre as 7 empresas do recorte, enquanto o faturamento usa a
+    âncora ATUALCOM='C', que é só receita de venda. A razão passa de 190%.
+    PARA ATIVAR: a controladoria define quais naturezas compõem "despesa
+    operacional" (fora 4010203 Empréstimos, 7010101 Dividendos, 8010700
+    Adiantamentos e as de imposto). Com a lista, vira percentual de verdade.
+    A métrica PCT_VS_PADRAO (razão do mês contra a razão média) já é
+    comparável consigo mesma mesmo com o escopo errado, e por isso aparece
+    no pulso.
+
+# ---------------------------------------------------------------------------
+# EMISSÃO FISCAL DAS COLIGADAS
+# ---------------------------------------------------------------------------
+
+- id: emissao_ntrlog
+  titulo: Emissão da NTR Log contra o frete pago
+  pergunta: A NTR Log está faturando o frete que a Nitron paga a ela?
+  area: financeiro
+  sql: sql/emissao_ntrlog.sql
+  frequencia: mensal
+  dia_mes: 5
+  horario: "07:00"
+  metrica: PCT_COBERTURA
+  unidade: percentual
+  avaliacao: { tipo: limite_inferior, verde: 90, amarelo: 70, vermelho: 40 }
+  dono: financeiro
+  canal_teams: financeiro
+  notificar: { verde: [], amarelo: [teams, email], vermelho: [teams, email] }
+  acao:
+    titulo: "NTR Log emitiu apenas {valor}% do frete que a Nitron pagou"
+    passos:
+      - "As notas existem e não foram importadas para o ERP, ou não foram emitidas?"
+      - "Se não foram importadas: traga a conciliação do mês, nota a nota."
+      - "Se não foram emitidas: qual a exposição fiscal acumulada e o plano de regularização."
+      - "Em qualquer cenário: o que muda no processo para não repetir no mês que vem."
+    sla_resposta_horas: 24
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    NTR Log é CODEMP 3 / CODPARC 65253 — empresa do grupo DENTRO do recorte
+    Nitron, e por isso some nas consolidações que eliminam intercompany.
+    Aferido 22/09/26, agosto fechado: a Nitron lançou R$ 842.709,40 de frete
+    NTR em 636 títulos, com ~97% já BAIXADOS (dinheiro que saiu). A NTR Log
+    emitiu R$ 21.567,12 no mesmo mês. Cobertura: 2,6%.
+    E dos 4.242 títulos de frete NTR dos últimos 6 meses, ZERO tem NUNOTA
+    preenchido — nenhum está amarrado a nota fiscal dentro do ERP.
+    O QUE ISTO NÃO PROVA: que a nota não existe. Pode ter sido emitida na
+    prefeitura e nunca importada. É exatamente essa a pergunta da ação —
+    por isso ela pede a conciliação, não a conclusão.
+
+- id: emissao_teak
+  titulo: Emissão da Teak Brazil
+  pergunta: A Teak parou de emitir?
+  area: financeiro
+  sql: sql/emissao_teak.sql
+  frequencia: semanal
+  dia_semana: seg
+  horario: "08:00"
+  metrica: DIAS_SEM_EMITIR
+  unidade: contagem
+  avaliacao: { tipo: limite_superior, verde: 10, amarelo: 20, vermelho: 35 }
+  dono: financeiro
+  canal_teams: financeiro
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "Teak Brazil há {valor} dias sem emitir nota"
+    passos:
+      - "Houve operação no período? Se houve, por que não faturou?"
+      - "Se não houve, isso era esperado ou a operação parou?"
+      - "Rondônia (CODEMP 21) segue sem emitir — a empresa está ativa ou é cadastro morto?"
+    sla_resposta_horas: 24
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    CODEMP 8 (São Paulo) e 21 (Rondônia), mesma razão social, fora do recorte
+    Nitron — não aparecem em nenhum outro KPI.
+    Aferido 22/09/26: CODEMP 8 emitiu 60 notas em 6 meses, média de
+    R$ 240.510,69/mês, última emissão hoje. CODEMP 21: ZERO em 6 meses.
+    A métrica é dias sem emitir, não o valor: o padrão da Teak é irregular
+    por natureza (1 nota em mai/26, 18 em ago/26), então cobrar variação de
+    valor dispararia alarme toda semana. O que é anômalo é o silêncio.
+
+# ---------------------------------------------------------------------------
+# COMERCIAL — erosão de carteira de produto
+# ---------------------------------------------------------------------------
+
+- id: produtos_em_queda
+  titulo: Produtos que pararam de vender
+  pergunta: O que vendia bem e caiu?
+  area: comercial
+  sql: sql/produtos_em_queda.sql
+  frequencia: semanal
+  dia_semana: seg
+  horario: "08:00"
+  metrica: VLR_PERDIDO
+  unidade: reais
+  avaliacao: { tipo: limite_superior, verde: 1500000, amarelo: 3000000, vermelho: 5000000 }
+  dono: diretor_comercial
+  canal_teams: comercial
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "R$ {valor} a menos nos produtos que já tinham performance"
+    passos:
+      - "Dos 5 primeiros: cliente perdido, concorrente ou falta de estoque?"
+      - "Se foi falta de estoque, cruze com o PCP antes de me responder."
+      - "Se foi concorrente, qual o preço dele e o que precisamos para reagir."
+    sla_resposta_horas: 24
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    90 dias contra os 90 anteriores, por produto, em valor. Só entra produto
+    que TINHA performance no período base — sem esse corte, cauda longa
+    inunda a lista.
+    Aferido 22/09/26 (piso R$ 20 mil, queda acima de 30%): 1.071 produtos com
+    movimento, 129 em queda, 70 caíram mais de 50%, 7 pararam de vender,
+    R$ 3.921.906,88 a menos que o mesmo conjunto gerava no período anterior.

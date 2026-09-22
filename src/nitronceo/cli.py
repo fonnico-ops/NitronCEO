@@ -6,6 +6,7 @@
     nitronceo pendentes             # o que está em aberto e com quem
     nitronceo responder <id> "..."  # registra resposta e para a cobrança
     nitronceo validar               # confere matriz + queries sem tocar no ERP
+    nitronceo dashboard -o x.html   # gera o painel do pipeline
 """
 
 from __future__ import annotations
@@ -15,6 +16,7 @@ import sys
 from pathlib import Path
 
 from .config import RAIZ, carregar
+from .dashboard import gerar
 from .motor import Motor, pulso
 from .notificadores import Console, EmailOutlook, Teams
 from .repositorio import Repositorio
@@ -92,6 +94,25 @@ def cmd_responder(args) -> int:
         repo.fechar()
 
 
+def cmd_dashboard(args) -> int:
+    """Mede, monta as ações e escreve o painel — sem notificar ninguém."""
+    motor, repo = _montar(args)
+    # O painel só lê: nada de mensagem para ninguém ao gerar o HTML.
+    motor.notificadores = {}
+    try:
+        rodada = motor.rodar(apenas=None, cobrar=False)
+        abertas = repo.acoes_em_aberto()
+        cobrancas, escaladas = repo.totais_de_cobranca()
+        html = gerar(motor.cfg, rodada.sinais, abertas, cobrancas, escaladas)
+        destino = Path(args.saida)
+        destino.parent.mkdir(parents=True, exist_ok=True)
+        destino.write_text(html, encoding="utf-8")
+        print(f"{destino} — {len(rodada.sinais)} KPIs, {len(abertas)} cobranças abertas")
+        return 1 if rodada.falhas else 0
+    finally:
+        repo.fechar()
+
+
 def cmd_validar(args) -> int:  # noqa: ARG001
     """Confere a matriz e monta todo o SQL sem executar nada."""
     cfg = carregar()
@@ -150,6 +171,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("validar", help="confere matriz e SQL sem tocar no ERP").set_defaults(
         func=cmd_validar
     )
+
+    sp = comum(sub.add_parser("dashboard", help="gera o painel do pipeline"))
+    sp.add_argument("-o", "--saida", default="dashboard.html")
+    sp.set_defaults(func=cmd_dashboard)
 
     args = p.parse_args(argv)
     return args.func(args)

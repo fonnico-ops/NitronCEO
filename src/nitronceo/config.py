@@ -73,8 +73,8 @@ def _params_padrao(matriz: dict[str, Any]) -> dict[str, Any]:
     codemp = ",".join(str(c) for c in matriz["recorte_padrao"]["codemp"])
     return {
         "CODEMP": codemp,
-        # Fonte de saldo. Ver sql/ruptura_estoque.sql: CODEMP 1 está corrompida.
-        "CODEMP_SALDO": "2",
+        # Fonte de saldo: CODEMP 1 está corrompida (3e19 unidades).
+        "CODEMP_SALDO": "2,4,14",
         # Meta de faturamento do mês. Trocar pela meta real do orçamento.
         "META_MENSAL": os.getenv("NITRONCEO_META_MENSAL", "8000000"),
         "JANELA_DIAS": "30",
@@ -87,6 +87,27 @@ def _params_padrao(matriz: dict[str, Any]) -> dict[str, Any]:
         # TOP 2203 = "Devolução Simbólica Consignado": acerto de consignação,
         # não retorno de cliente. Incluí-la infla a devolução em ~3x.
         "TOPS_EXCLUIR_DEVOLUCAO": "2203",
+        # CODLOCAL "Estoque para Transferência": conta de contrapartida,
+        # negativa por construção. Somá-la destrói o saldo — ver
+        # sql/ruptura_estoque.sql.
+        "LOCAL_TRANSFERENCIA": "1080000",
+        # Fila de liberação (TSILIB). Eventos de crédito vão para o
+        # financeiro; todo o resto é decisão do comercial.
+        "LIBERACAO_DIAS": "180",
+        "EVENTOS_CREDITO": "3,15,8",
+        "COBERTURA_ALERTA_DIAS": "15",
+        "DEMANDA_PISO_MES": "5000",
+        "DEVEDOR_PISO": "50000",
+        "GASTO_PISO_MES": "50000",
+        "GASTO_ESTOURO_PCT": "130",
+        "QUEDA_PISO_BASE": "20000",
+        "QUEDA_PCT": "70",
+        # NTR Log: CODEMP 3 / CODPARC 65253; natureza do frete na Nitron.
+        "NAT_FRETE_NTR": "9010107",
+        "CODPARC_NTRLOG": "65253",
+        "CODEMP_NTRLOG": "3",
+        # Teak Brazil: São Paulo e Rondônia, fora do recorte Nitron.
+        "CODEMP_TEAK": "8,21",
     }
 
 
