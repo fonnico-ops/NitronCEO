@@ -167,13 +167,16 @@ class Repositorio:
             )
         self.con.commit()
 
-    def registrar_resposta(self, acao_id: str, texto: str) -> bool:
+    def registrar_resposta(
+        self, acao_id: str, texto: str, quando: datetime | None = None
+    ) -> bool:
         if not self.buscar_acao(acao_id):
             return False
         self.con.execute(
             "UPDATE acoes SET estado = ?, resposta = ?, respondida_em = ?"
             " WHERE id = ?",
-            (Estado.RESPONDIDA.value, texto, datetime.now().isoformat(), acao_id),
+            (Estado.RESPONDIDA.value, texto,
+             (quando or datetime.now()).isoformat(), acao_id),
         )
         self.con.commit()
         return True

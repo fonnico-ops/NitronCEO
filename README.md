@@ -70,18 +70,44 @@ nitronceo rodar
 
 nitronceo pendentes
 nitronceo responder a1b2c3d4e5f6 "Protesto entra quinta; top 3 já em acordo."
+nitronceo importar respostas.json    # respostas vindas do painel publicado
 ```
 
-### Dashboard
+### Painel
 
 ```bash
 nitronceo dashboard --dry-run -o dashboard.html
 ```
 
-Gera o painel do pipeline: os 23 indicadores por área, a esteira
-`medido → fora da linha → cobrável → ação → cobrado → escalado → respondido`,
-as cobranças abertas com dono e prazo, e o que está em sombra. Tema claro e
-escuro, funciona no celular.
+Gera o painel do pipeline. Duas coisas acontecem nele, não só nele:
+
+- **cada etapa da esteira abre** e mostra quais indicadores estão nela —
+  `medido → fora da linha → cobrável → ação → cobrado → escalado → respondido`;
+- **cada cobrança abre** e mostra a pergunta, o que foi pedido, os números da
+  apuração e a base do cálculo — e recebe a **resposta de quem foi cobrado**,
+  assinada e com data, visível para todo mundo que abrir depois.
+
+Tema claro e escuro, funciona no celular.
+
+### O ciclo da resposta
+
+A resposta não fica no HTML: quem responde não é quem publica a página, e o
+texto precisa sobreviver à próxima republicação. Ela vai para a base do
+artifact (capacidade `db`), e volta para o banco local assim:
+
+```bash
+# 1. publique o painel (uma vez por rodada)
+nitronceo dashboard -o dashboard.html      # depois publique o arquivo
+
+# 2. as pessoas respondem na própria página
+
+# 3. traga as respostas de volta e encerre as cobranças
+nitronceo importar respostas.json
+```
+
+`respostas.json` é o que a leitura da coleção `respostas` devolve. **Só as
+marcadas com "isto encerra a cobrança" param a escada** — as demais são
+recado, não conclusão, e o relógio do SLA continua correndo.
 
 O `--dry-run` usa `tests/fixtures/`, que contém o **resultado real** das
 queries em produção. O pulso que ele imprime é o estado verdadeiro da empresa
@@ -167,7 +193,7 @@ src/nitronceo/
   cobranca.py           a escada: dono → gestor → CEO → para
   repositorio.py        SQLite: sinais, ações, cobranças
   motor.py              orquestração + pulso do CEO
-  dashboard.py          painel do pipeline em HTML (claro/escuro)
+  dashboard.py          painel do pipeline: drill-down + respostas
   notificadores/        console (dry-run), Teams e Outlook via Graph
 tests/                  20 testes; 23 fixtures com dados reais de produção
 docs/                   arquitetura, governança, achados de dados

@@ -78,6 +78,28 @@ aceitável no dia 3.
 
 ---
 
+## Onde a resposta é dada
+
+A resposta acontece **na própria cobrança, no painel** — não num e-mail de
+volta que ninguém arquiva. Quem abre a cobrança vê a pergunta, o que foi
+pedido, os números e a base do cálculo, e escreve ali.
+
+Há duas formas de responder, e a diferença importa:
+
+| Gesto | O que acontece |
+|---|---|
+| Responder | fica registrado, assinado e visível. O SLA **continua correndo**. |
+| Responder marcando *"isto encerra a cobrança"* | a escada para. |
+
+Isso existe porque "estou olhando" é uma resposta legítima e não é uma
+conclusão. Separar as duas evita a situação em que a cobrança some da lista
+porque alguém digitou qualquer coisa.
+
+A resposta fica na base do painel; `nitronceo importar` traz as encerradas
+para o banco local e fecha a ação.
+
+---
+
 ## Uma ação por KPI por dia
 
 O identificador da ação é `sha1(kpi_id + data)`. Rodar o motor quatro vezes no

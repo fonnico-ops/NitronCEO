@@ -7,11 +7,13 @@
     nitronceo responder <id> "..."  # registra resposta e para a cobrança
     nitronceo validar               # confere matriz + queries sem tocar no ERP
     nitronceo dashboard -o x.html   # gera o painel do pipeline
+    nitronceo importar respostas.json   # traz as respostas do painel de volta
 """
 
 from __future__ import annotations
 
 import argparse
+import signal
 import sys
 from pathlib import Path
 
@@ -113,6 +115,53 @@ def cmd_dashboard(args) -> int:
         repo.fechar()
 
 
+def cmd_importar(args) -> int:
+    """Traz para o banco local as respostas escritas no painel publicado.
+
+    O painel grava cada resposta na base do artifact. Esse arquivo é o que a
+    leitura dessa base devolve — uma lista de objetos com `acaoId`, `texto`,
+    `criadoEm` e `encerra`. Só as marcadas com `encerra` param a escada de
+    cobrança; as demais são recado, não conclusão.
+    """
+    import json
+    from datetime import datetime
+
+    repo = Repositorio(args.banco)
+    try:
+        bruto = json.loads(Path(args.arquivo).read_text(encoding="utf-8"))
+        respostas = bruto.get("documents", bruto) if isinstance(bruto, dict) else bruto
+
+        encerradas = ignoradas = desconhecidas = 0
+        for r in respostas:
+            corpo = r.get("data", r)
+            acao_id = corpo.get("acaoId")
+            if not acao_id:
+                continue
+            if not corpo.get("encerra"):
+                ignoradas += 1
+                continue
+            quando = None
+            try:
+                quando = datetime.fromisoformat(
+                    str(corpo.get("criadoEm", "")).replace("Z", "+00:00")
+                )
+            except ValueError:
+                pass
+            if repo.registrar_resposta(acao_id, corpo.get("texto", ""), quando):
+                encerradas += 1
+                print(f"[{acao_id[:6]}] encerrada")
+            else:
+                desconhecidas += 1
+
+        print(
+            f"\n{encerradas} cobranças encerradas · {ignoradas} respostas sem "
+            f"encerramento · {desconhecidas} para ações que não existem aqui"
+        )
+        return 0
+    finally:
+        repo.fechar()
+
+
 def cmd_validar(args) -> int:  # noqa: ARG001
     """Confere a matriz e monta todo o SQL sem executar nada."""
     cfg = carregar()
@@ -142,6 +191,11 @@ def cmd_validar(args) -> int:  # noqa: ARG001
 
 
 def main(argv: list[str] | None = None) -> int:
+    # `nitronceo pendentes | head` fecha o pipe no meio da escrita; sem isto o
+    # usuário vê um traceback em vez do resultado que ele pediu.
+    if hasattr(signal, "SIGPIPE"):
+        signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+
     p = argparse.ArgumentParser(prog="nitronceo", description=__doc__)
     p.add_argument("--banco", default="dados/nitronceo.db")
     sub = p.add_subparsers(dest="comando", required=True)
@@ -171,6 +225,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("validar", help="confere matriz e SQL sem tocar no ERP").set_defaults(
         func=cmd_validar
     )
+
+    sp = sub.add_parser("importar", help="traz as respostas do painel publicado")
+    sp.add_argument("arquivo", help="JSON exportado da base do artifact")
+    sp.set_defaults(func=cmd_importar)
 
     sp = comum(sub.add_parser("dashboard", help="gera o painel do pipeline"))
     sp.add_argument("-o", "--saida", default="dashboard.html")
