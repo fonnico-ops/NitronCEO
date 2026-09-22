@@ -1,25 +1,28 @@
 -- KPI: gastos_acima_media
 -- Pergunta: qual natureza de despesa estourou o próprio padrão no mês passado?
 --
--- Compara cada CODNAT de despesa no mês fechado contra a própria média dos 12
--- meses anteriores. Compara natureza consigo mesma, e não contra o
--- faturamento, de propósito: a base de despesa da Nitron inclui matéria-prima,
--- empréstimos, dividendos e impostos, então a razão despesa/faturamento
--- passa de 190% e não é interpretável como percentual de gasto. Esse recorte
--- está em despesa_sobre_faturamento.sql, e nasce em sombra por isso.
+-- ESCOPO: o complemento de gastos_compras.sql — tudo que NÃO é natureza de
+-- compra. Financiamento, dividendo, folha, imposto, aluguel, serviço
+-- administrativo. É a despesa que o financeiro decide ou acompanha.
+--
+-- A natureza que mais estourou em ago/26 está aqui: Empréstimos e
+-- Financiamentos, R$ 4.678.714 contra média de R$ 1.763.563 (+265%).
+--
+-- Compara cada natureza consigo mesma, e não contra o faturamento, de
+-- propósito: a razão despesa/faturamento passa de 190% porque mistura
+-- matéria-prima com empréstimo, e não é interpretável como percentual de
+-- gasto. Esse recorte está em despesa_sobre_faturamento.sql, em sombra por
+-- isso.
 --
 -- Piso de relevância {{GASTO_PISO_MES}}: sem ele, natureza de R$ 300/mês que
 -- virou R$ 900 aparece como "+200%" e enterra o alerta que importa.
 --
--- Aferido 22/09/2026 — naturezas com média mensal acima de R$ 250 mil:
---   Empréstimos e Financiamentos   média R$ 2.153.038  |  ago/26 R$ 4.678.713  (+117%)
---   Matéria Prima                  média R$ 2.080.213  |  ago/26 R$ 1.903.854  (-8%)
---   Fretes e transportes NTR       média R$   659.634  |  ago/26 R$   842.709  (+28%)
---   Lucros e Dividendos            média R$   607.168  |  ago/26 R$   796.226  (+31%)
---   INSS                           média R$   457.237  |  ago/26 R$   325.603  (-29%)
---   Injeção Terceirizada           média R$   336.328  |  ago/26 R$   578.940  (+72%)
+-- Aferido 22/09/2026 (ago/26 contra média de 12 meses):
+--   4010203 Empréstimos e Financiamentos  R$ 4.678.714 vs R$ 1.763.563  +265%
+--   7010101 Lucros e Dividendos           R$   796.227 vs R$   583.610  +136%
+--   1010207 Devoluções de vendas          R$   350.774 vs R$   267.292  +131%
 --
--- Params: {{CODEMP}}  {{GASTO_PISO_MES}}  {{GASTO_ESTOURO_PCT}}
+-- Params: {{CODEMP}}  {{GASTO_PISO_MES}}  {{GASTO_ESTOURO_PCT}}  {{NAT_COMPRAS}}
 
 WITH DESP AS (
   SELECT F.CODNAT, F.DTNEG, F.VLRDESDOB
@@ -27,6 +30,7 @@ WITH DESP AS (
    WHERE F.CODEMP IN ({{CODEMP}})
      AND F.RECDESP = -1
      AND NVL(F.PROVISAO,'N') = 'N'
+     AND F.CODNAT NOT IN ({{NAT_COMPRAS}})
      AND F.DTNEG >= ADD_MONTHS(TRUNC(SYSDATE,'MM'),-13)
      AND F.DTNEG <  TRUNC(SYSDATE,'MM')
 ),

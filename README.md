@@ -18,41 +18,47 @@ Um indicador que não chega até `cobrar` não entra na matriz.
 
 ## Estado hoje
 
-27 KPIs. **23 cobram. 4 estão em sombra** — medem e aparecem no pulso, mas não
+30 KPIs. **26 cobram. 4 estão em sombra** — medem e aparecem no pulso, mas não
 notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 
 | KPI | Dono | Estado |
 |---|---|---|
+| Emissão da Teak Brazil | Cristiane Alves | ✅ cobra |
+| Gastos de compra fora do padrão | Cristiane Alves | ✅ cobra |
 | Carteira disponível para faturar | Ricardo Miyabara | ✅ cobra |
-| Ritmo de entrada de pedidos | Ricardo Miyabara | ✅ cobra |
 | Pedidos esperando aprovação ou recusa | Ricardo Miyabara | ✅ cobra |
 | Produtos que pararam de vender | Ricardo Miyabara | ✅ cobra |
-| Ritmo de faturamento (meta R$ 500 mil/dia) | Expedição e Forla Silva | ✅ cobra |
-| Ordens de carga montadas/dia | Expedição e Forla Silva | ✅ cobra |
-| Agenda de carga contra a capacidade | Expedição e Forla Silva | ✅ cobra |
-| Notas devolvidas | Alex Souza e Charles Silva | ✅ cobra |
-| Reentradas / refaturamento | Alex Souza e Charles Silva | ✅ cobra |
-| Injetoras paradas agora | Alex Souza e Charles Silva | ✅ cobra |
-| Tempo de setup das injetoras | Alex Souza e Charles Silva | ✅ cobra |
-| Paradas sem motivo apontado | Alex Souza e Charles Silva | ✅ cobra |
-| Injetora parada por molde | Projetos / Moldes | ✅ cobra |
-| Produtos com estoque curto | Anderson Lourenço | ✅ cobra |
-| O que o PCP precisa programar | Anderson Lourenço | ✅ cobra |
-| Ruptura de estoque na carteira | Anderson Lourenço | ✅ cobra |
-| Fluxo de caixa D0–D30 | Claudia Ribeiro | ✅ cobra |
-| Recebíveis vencidos | Claudia Ribeiro | ✅ cobra |
+| Ritmo de entrada de pedidos | Ricardo Miyabara | ✅ cobra |
+| Despesa fora de Compras acima do padrão | Claudia Ribeiro | ✅ cobra |
+| Fluxo de caixa dos próximos 7 dias | Claudia Ribeiro | ✅ cobra |
 | Grandes devedores | Claudia Ribeiro | ✅ cobra |
 | Pedidos travados no crédito | Claudia Ribeiro | ✅ cobra |
-| Naturezas de despesa fora do padrão | Claudia Ribeiro | ✅ cobra |
-| Emissão da NTR Log contra o frete pago | Claudia Ribeiro | ✅ cobra |
-| Emissão da Teak Brazil | Claudia Ribeiro | ✅ cobra |
-| Performance por representante | Ricardo Miyabara | 🌓 sombra |
+| Recebíveis vencidos | Claudia Ribeiro | ✅ cobra |
+| Injetoras paradas agora | Alex Souza e Charles Silva | ✅ cobra |
+| Paradas sem motivo apontado | Alex Souza e Charles Silva | ✅ cobra |
+| Tempo de setup das injetoras | Alex Souza e Charles Silva | ✅ cobra |
+| Agenda de carga contra a capacidade | Expedição e Forla Silva | ✅ cobra |
+| Emissão da NTR Log contra o frete pago | Expedição e Forla Silva | ✅ cobra |
+| Notas com reentrada / refaturamento | Expedição e Forla Silva | ✅ cobra |
+| Notas devolvidas | Expedição e Forla Silva | ✅ cobra |
+| Ordens de carga montadas por dia | Expedição e Forla Silva | ✅ cobra |
+| Ritmo de faturamento | Expedição e Forla Silva | ✅ cobra |
+| O que o PCP precisa programar | Anderson Lourenço | ✅ cobra |
+| Produtos com estoque curto | Anderson Lourenço | ✅ cobra |
+| Produtos sem estoque com pedido na carteira | Anderson Lourenço | ✅ cobra |
+| Suspensos que continuam vendendo | Anderson Lourenço | ✅ cobra |
+| Injetora parada por molde | Projetos | ✅ cobra |
+| Injeção fora da Nitron | Projetos | ✅ cobra |
+| Despesa sobre faturamento | Cristiane Alves | 🌓 sombra |
 | Performance por canal | Ricardo Miyabara | 🌓 sombra |
+| Performance por representante | Ricardo Miyabara | 🌓 sombra |
 | Entregas reagendadas | Expedição e Forla Silva | 🌓 sombra |
-| Despesa sobre faturamento | Claudia Ribeiro | 🌓 sombra |
 
-**Cristiane Alves (Compras)** continua sem KPI — ver "O que ainda falta
-decidir". Projetos/Moldes ganhou o seu em 22/09.
+Só o papel **Qualidade** ficou sem KPI. Alex e Charles continuam donos dos
+três de produção — o que está vazio é o papel, não as pessoas. O que
+destravaria: `TGFCAB.AD_MOTIVO` está 100% nulo nas 741 devoluções dos últimos
+180 dias; preenchê-lo separa erro de faturamento (expedição) de defeito de
+produto (qualidade).
 
 O porquê de cada sombra — e o que destrava cada uma — está em
 [`docs/achados-de-dados.md`](docs/achados-de-dados.md).
@@ -168,6 +174,7 @@ inventei KPI por conta própria; o que eu proporia:
 
 | Papel | KPI candidato | De onde sairia |
 |---|---|---|
+| Qualidade | Devolução por defeito de produto | hoje impossível: `TGFCAB.AD_MOTIVO` está 100% nulo nas 741 devoluções dos últimos 180 dias. Preenchê-lo separa erro de faturamento (expedição) de defeito (produção) |
 | Compras — Cristiane | Naturezas de compra fora do padrão | fatiar `gastos_acima_media`: Matéria Prima, Embalagens, Injeção Terceirizada e Adiantamento a Fornecedores são de Compras; Empréstimos e Dividendos ficam no financeiro |
 | Compras — Cristiane | MP que trava programação do PCP | cruzar `demanda_alta_estoque_baixo` com a data de chegada da matéria-prima |
 | Projetos/Moldes | Molde parado / manutenção | `AD_PARADAMAQUINA` tinha os motivos `MM` (Manutenção de Molde) e `QM` (Queima de Resistência) — a mesma tabela morta que impede o KPI de setup |
@@ -200,7 +207,9 @@ A divisão não é por assunto, é por **onde a bola está**:
 | | entrada de pedidos | **ritmo de faturamento** |
 | | carteira disponível para faturar | ordens de carga por dia |
 | | pedidos esperando aprovação | agenda de carga vs capacidade |
-| | produtos que pararam de vender | entregas reagendadas |
+| | produtos que pararam de vender | **notas devolvidas** |
+| | | **reentradas sem refaturamento** |
+| | | entregas reagendadas |
 
 Faturar é emitir a nota, e quem emite é quem carrega. O comercial responde
 por trazer pedido e por manter a carteira atendível; o que já está vendido e

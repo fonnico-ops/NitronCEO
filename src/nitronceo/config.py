@@ -140,6 +140,14 @@ def _params_padrao(matriz: dict[str, Any]) -> dict[str, Any]:
         "DEMANDA_PISO_MES": "5000",
         "DEVEDOR_PISO": "50000",
         "GASTO_PISO_MES": "50000",
+        # Naturezas de COMPRA (grupo 3 = custo de material e serviço de
+        # produção, mais o adiantamento a fornecedor). O resto da despesa —
+        # financiamento, dividendo, folha, imposto, aluguel — não é decisão
+        # de quem compra, e cobrar Compras por ela seria cobrança sem alçada.
+        "NAT_INJECAO_TERCEIRIZADA": "3010105",
+        "REATIVAR_PISO": "5000",
+        "NAT_COMPRAS": ("3010101,3010103,3010105,3010106,3010107,3010108,"
+                        "3010109,3010110,8010700"),
         "GASTO_ESTOURO_PCT": "130",
         "QUEDA_PISO_BASE": "20000",
         "QUEDA_PCT": "70",

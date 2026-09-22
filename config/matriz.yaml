@@ -231,26 +231,34 @@ kpis:
 - id: devolucoes
   titulo: Notas devolvidas
   pergunta: Quanto do que faturei está voltando, e por quê?
-  area: qualidade
+  area: logistica
   sql: sql/devolucoes.sql
   frequencia: diaria
   horario: "07:30"
   metrica: PCT_SOBRE_FATURAMENTO
   unidade: percentual
   avaliacao: { tipo: limite_superior, verde: 1.5, amarelo: 3.0, vermelho: 5.0 }
-  dono: qualidade
-  canal_teams: producao
+  dono: logistica
+  canal_teams: logistica
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "Devoluções em {valor}% do faturamento"
     passos:
-      - "Top 3 motivos e top 3 clientes da janela."
-      - "Se for defeito, qual molde/injetora e qual lote."
+      - "Top 3 clientes da janela e o motivo de cada devolução."
+      - "Separe erro nosso (produto trocado, quantidade errada, nota errada) de recusa do cliente."
+      - "Se a causa for defeito de produto, nomeie — aí é da produção e eu cobro lá."
       - "Contenção para hoje e correção para a semana."
     sla_resposta_horas: 8
   status_dado: validado
   modo: ativo
   observacao: >
+    DONO É A EXPEDIÇÃO/FATURAMENTO, não a qualidade — definido pela diretoria
+    em 22/09/26. Nota que volta é problema de expedição até prova em
+    contrário; defeito de produto é a exceção, não a regra.
+    NÃO DÁ PARA SEPARAR AUTOMATICAMENTE: TGFCAB.AD_MOTIVO está 100% NULO nas
+    741 devoluções dos últimos 180 dias. Por isso a ação pede que a causa seja
+    nomeada na resposta — quando for defeito, a cobrança migra para a produção
+    manualmente. Preencher AD_MOTIVO destravaria o corte automático.
     ARMADILHA CONFIRMADA: TIPMOV='D' cru infla ~3x. A TOP 2203 "Devolução
     Simbólica Consignado" somou R$ 1.426.216,82 no 3º tri/26 e NÃO é devolução
     de cliente — é acerto de consignação. O SQL exclui a 2203.
@@ -259,26 +267,33 @@ kpis:
 - id: reentradas
   titulo: Notas com reentrada / refaturamento
   pergunta: O que voltou, foi resolvido e refaturado — ou está parado?
-  area: qualidade
+  area: logistica
   sql: sql/reentradas.sql
   frequencia: semanal
   dia_semana: seg
   horario: "08:00"
-  metrica: QTD_REFATURADAS
+  metrica: QTD_EM_ABERTO
   unidade: contagem
-  avaliacao: { tipo: limite_superior, verde: 15, amarelo: 30, vermelho: 50 }
-  dono: qualidade
-  canal_teams: producao
+  avaliacao: { tipo: limite_superior, verde: 25, amarelo: 45, vermelho: 80 }
+  dono: logistica
+  canal_teams: logistica
   notificar: { verde: [], amarelo: [teams], vermelho: [teams] }
   acao:
-    titulo: "{valor} notas refaturadas na janela"
+    titulo: "{valor} notas devolvidas ainda sem refaturamento"
     passos:
-      - "Quantas ainda não voltaram para o cliente e há quantos dias."
+      - "Há quantos dias cada uma está parada e o que falta para reexpedir."
+      - "Se a mercadoria não pode voltar ao estoque, diga o que será feito com ela."
       - "Qual a causa-raiz mais frequente e o que já mudou por causa dela."
     sla_resposta_horas: 24
   status_dado: validado
   modo: ativo
   observacao: >
+    DONO É A EXPEDIÇÃO/FATURAMENTO — definido pela diretoria em 22/09/26.
+    Refaturar é reemitir a nota e reexpedir a mercadoria, e quem faz isso é
+    quem faturou da primeira vez.
+    O número que cobra não é o total de refaturamentos e sim QTD_EM_ABERTO: a
+    nota que voltou e ainda não saiu de novo. Cada uma dessas é mercadoria
+    parada no CD e cliente esperando.
     TGFCAB.AD_REFATURADA='S'. Set/26: 17 notas, R$ 186.222,34.
     TGFCAB.AD_NUDEV (vínculo com a devolução) preenchido em 58 notas no mês.
 
@@ -620,11 +635,54 @@ kpis:
     comprar é caso de cobrança; devedor que continua comprando é falha de
     bloqueio, e a ação é outra.
 
-- id: gastos_acima_media
-  titulo: Naturezas de despesa fora do padrão
-  pergunta: Qual gasto estourou o próprio histórico no mês fechado?
+- id: gastos_compras
+  titulo: Gastos de compra fora do padrão
+  pergunta: Qual gasto de compra estourou o próprio histórico no mês fechado?
+  area: compras
+  sql: sql/gastos_compras.sql
+  frequencia: mensal
+  dia_mes: 5
+  horario: "08:00"
+  metrica: EXCESSO_TOTAL
+  unidade: reais
+  avaliacao: { tipo: limite_superior, verde: 200000, amarelo: 500000, vermelho: 1000000 }
+  dono: compras
+  canal_teams: financeiro
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "R$ {valor} de gasto de compra acima do padrão"
+    passos:
+      - "Para cada natureza da lista: o estouro foi decisão ou descontrole?"
+      - "O que foi decisão (compra antecipada, lote maior, preço travado): quem decidiu e qual o ganho."
+      - "O que foi preço de fornecedor: já foi renegociado? Há alternativa homologada?"
+      - "Injeção terceirizada subindo pode ser capacidade interna faltando — cruze com o PCP."
+    sla_resposta_horas: 48
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    DONO É COMPRAS — definido pela diretoria em 22/09/26.
+    O KPI foi FATIADO para respeitar a alçada: só entram as naturezas que
+    Compras decide — grupo 3 (matéria-prima, embalagens, injeção
+    terceirizada, etiquetas, materiais para revenda) e 8010700 (adiantamento
+    a fornecedores). Empréstimos, dividendos, folha, imposto e aluguel foram
+    para gastos_financeiros, com a Claudia.
+    O motivo do corte: a natureza que mais estourou em ago/26 foi Empréstimos
+    e Financiamentos, com +265%. Cobrar Compras por isso seria cobrança sem
+    alçada, e é o tipo de alerta que queima a credibilidade da matriz na
+    primeira semana.
+    Naturezas de compra e média mensal de 12 meses: Matéria Prima
+    R$ 2.237.376; Adiantamento a Fornecedores R$ 387.682 (ago/26 +40%);
+    Injeção Terceirizada R$ 358.192 (+87%); Etiquetas R$ 175.477; Embalagens
+    R$ 172.855 (+83%); Materiais para Revenda R$ 166.902.
+    Piso de relevância de R$ 50 mil de média mensal: sem ele, natureza de
+    R$ 300 que virou R$ 900 aparece como "+200%" e enterra o alerta que
+    importa.
+
+- id: gastos_financeiros
+  titulo: Despesa fora de Compras acima do padrão
+  pergunta: Qual despesa financeira ou administrativa estourou o histórico?
   area: financeiro
-  sql: sql/gastos_acima_media.sql
+  sql: sql/gastos_financeiros.sql
   frequencia: mensal
   dia_mes: 5
   horario: "08:00"
@@ -635,26 +693,27 @@ kpis:
   canal_teams: financeiro
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
-    titulo: "R$ {valor} de despesa acima do padrão histórico"
+    titulo: "R$ {valor} de despesa acima do padrão fora de Compras"
     passos:
       - "Para cada natureza da lista: o estouro foi decisão ou descontrole?"
-      - "O que foi decisão, quem decidiu e o retorno esperado."
-      - "O que foi descontrole, qual o teto daqui para frente."
+      - "Empréstimos e dividendos: foi movimento planejado? Qual o efeito no caixa dos próximos 90 dias?"
+      - "O que foi descontrole: qual o teto daqui para frente e quem controla."
     sla_resposta_horas: 48
   status_dado: validado
   modo: ativo
   observacao: >
-    Compara cada CODNAT contra a própria média de 12 meses, com piso de
-    relevância — sem o piso, natureza de R$ 300 que virou R$ 900 aparece como
-    "+200%" e enterra o alerta que importa.
-    Aferido 22/09/26 (ago/26 vs média 12M): Empréstimos e Financiamentos
-    R$ 4.678.713 contra média de R$ 2.153.038 (+117%); Injeção Terceirizada
-    +72%; Fretes NTR +28%; Lucros e Dividendos +31%.
+    Complemento de gastos_compras: tudo que NÃO é natureza de compra.
+    AFERIDO 22/09/26 (ago/26 contra média de 12 meses): Empréstimos e
+    Financiamentos R$ 4.678.714 contra R$ 1.763.563 (+265%); Lucros e
+    Dividendos R$ 796.227 contra R$ 583.610 (+136%); Devoluções de vendas
+    R$ 350.774 contra R$ 267.292 (+131%).
+    Os limiares são mais altos que os de Compras porque a base é maior e
+    movimento de financiamento oscila por natureza.
 
 - id: despesa_sobre_faturamento
   titulo: Despesa sobre faturamento
   pergunta: A despesa está crescendo mais rápido que a receita?
-  area: financeiro
+  area: compras
   sql: sql/despesa_sobre_faturamento.sql
   frequencia: mensal
   dia_mes: 5
@@ -662,7 +721,7 @@ kpis:
   metrica: PCT_VS_PADRAO
   unidade: percentual
   avaliacao: { tipo: limite_superior, verde: 105, amarelo: 115, vermelho: 130 }
-  dono: financeiro
+  dono: compras
   canal_teams: financeiro
   notificar: { verde: [], amarelo: [teams], vermelho: [teams] }
   acao:
@@ -674,6 +733,10 @@ kpis:
   status_dado: calibrar
   modo: sombra
   observacao: >
+    DONO É COMPRAS — definido pela diretoria em 22/09/26. Faz sentido com o
+    fatiamento: quem decide o custo de material é quem consegue mexer na
+    razão. A definição de "despesa operacional" que destrava o KPI passa a
+    ser tarefa de Compras com a controladoria.
     Roda, mas o percentual absoluto não é interpretável: a despesa bruta da
     TGFFIN roda entre R$ 10,6 mi e R$ 15,2 mi/mês contra faturamento de
     R$ 7,5 mi, porque inclui matéria-prima, empréstimos, dividendos, impostos
@@ -693,7 +756,7 @@ kpis:
 - id: emissao_ntrlog
   titulo: Emissão da NTR Log contra o frete pago
   pergunta: A NTR Log está faturando o frete que a Nitron paga a ela?
-  area: financeiro
+  area: logistica
   sql: sql/emissao_ntrlog.sql
   frequencia: mensal
   dia_mes: 5
@@ -701,20 +764,26 @@ kpis:
   metrica: PCT_COBERTURA
   unidade: percentual
   avaliacao: { tipo: limite_inferior, verde: 90, amarelo: 70, vermelho: 40 }
-  dono: financeiro
-  canal_teams: financeiro
+  dono: logistica
+  canal_teams: logistica
   notificar: { verde: [], amarelo: [teams, email], vermelho: [teams, email] }
   acao:
     titulo: "NTR Log emitiu apenas {valor}% do frete que a Nitron pagou"
     passos:
       - "As notas existem e não foram importadas para o ERP, ou não foram emitidas?"
-      - "Se não foram importadas: traga a conciliação do mês, nota a nota."
-      - "Se não foram emitidas: qual a exposição fiscal acumulada e o plano de regularização."
-      - "Em qualquer cenário: o que muda no processo para não repetir no mês que vem."
+      - "Se não foram importadas: traga a conciliação do mês, frete a frete."
+      - "Se não foram emitidas: quem na NTR Log emite, e o que trava a emissão?"
+      - "Envolva o financeiro para dimensionar a exposição fiscal acumulada."
+      - "O que muda no processo para não repetir no mês que vem."
     sla_resposta_horas: 24
   status_dado: validado
   modo: ativo
   observacao: >
+    DONO É A LOGÍSTICA/EXPEDIÇÃO, não o financeiro — definido pela diretoria
+    em 22/09/26. A relação com a NTR Log é de transporte: quem contrata o
+    frete e recebe o serviço é quem consegue dizer o que foi prestado e
+    cobrar a nota. O financeiro entra para dimensionar a exposição fiscal,
+    e isso está nos passos da ação.
     NTR Log é CODEMP 3 / CODPARC 65253 — empresa do grupo DENTRO do recorte
     Nitron, e por isso some nas consolidações que eliminam intercompany.
     Aferido 22/09/26, agosto fechado: a Nitron lançou R$ 842.709,40 de frete
@@ -729,7 +798,7 @@ kpis:
 - id: emissao_teak
   titulo: Emissão da Teak Brazil
   pergunta: A Teak parou de emitir?
-  area: financeiro
+  area: compras
   sql: sql/emissao_teak.sql
   frequencia: semanal
   dia_semana: seg
@@ -737,7 +806,7 @@ kpis:
   metrica: DIAS_SEM_EMITIR
   unidade: contagem
   avaliacao: { tipo: limite_superior, verde: 10, amarelo: 20, vermelho: 35 }
-  dono: financeiro
+  dono: compras
   canal_teams: financeiro
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
@@ -750,6 +819,7 @@ kpis:
   status_dado: validado
   modo: ativo
   observacao: >
+    DONO É COMPRAS — definido pela diretoria em 22/09/26.
     CODEMP 8 (São Paulo) e 21 (Rondônia), mesma razão social, fora do recorte
     Nitron — não aparecem em nenhum outro KPI.
     Aferido 22/09/26: CODEMP 8 emitiu 60 notas em 6 meses, média de
@@ -952,3 +1022,82 @@ kpis:
     numerador: tem código, então foi apontado. Se na prática for usado como
     "não sei", vale rever — mas isso é decisão da produção, não suposição
     desta query.
+
+# ---------------------------------------------------------------------------
+# DECISÕES QUE VIVEM FORA DO ERP — o KPI dimensiona, a resposta traz a lista
+# ---------------------------------------------------------------------------
+
+- id: suspensos_para_reativar
+  titulo: Suspensos que continuam vendendo
+  pergunta: Quais produtos suspensos o mercado ainda está comprando?
+  area: pcp
+  sql: sql/suspensos_para_reativar.sql
+  frequencia: semanal
+  dia_semana: seg
+  horario: "08:00"
+  metrica: VLR_VENDIDO_180D
+  unidade: reais
+  avaliacao: { tipo: limite_superior, verde: 400000, amarelo: 900000, vermelho: 1800000 }
+  dono: pcp
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "R$ {valor} vendidos em 180 dias de produtos que estão suspensos"
+    passos:
+      - "Publique aqui na resposta a lista de reativação, com o que entra e a data."
+      - "Dos 15 primeiros da lista: quais voltam, quais ficam suspensos e por quê."
+      - "Os que têm pedido aberto agora são os mais urgentes — cliente já comprou."
+      - "Para os que não voltam: o cadastro precisa ser corrigido para pararem de vender."
+    sla_resposta_horas: 48
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Existe uma lista de reativação com o Anderson que NÃO está no ERP. Este
+    KPI não substitui a lista — dá a ela tamanho e ranking, e a cobrança pede
+    que a lista seja publicada na resposta, onde fica com data e nome.
+    O sinal é objetivo: produto marcado AD_AG_SUSPENSO='S' que MESMO ASSIM
+    vendeu nos últimos 180 dias. Ou a venda é excepcional e some, ou o produto
+    foi suspenso e o mercado não concordou.
+    AFERIDO 22/09/26: 652 suspensos no cadastro, 421 (65%) venderam nos
+    últimos 180 dias somando R$ 1.581.142,14, e 165 têm PEDIDO ABERTO agora
+    (R$ 27.646,90).
+    A métrica é o VALOR e não a contagem: 421 itens é lista que ninguém lê;
+    os 15 primeiros por faturamento é reunião de meia hora.
+
+- id: injecao_terceirizada
+  titulo: Injeção fora da Nitron
+  pergunta: Quanto custa ter molde injetando em terceiro, e com quem?
+  area: projetos
+  sql: sql/injecao_terceirizada.sql
+  frequencia: mensal
+  dia_mes: 5
+  horario: "08:00"
+  metrica: VLR_TRIMESTRE
+  unidade: reais
+  avaliacao: { tipo: limite_superior, verde: 600000, amarelo: 1200000, vermelho: 2000000 }
+  dono: projetos
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "R$ {valor} de injeção terceirizada no trimestre"
+    passos:
+      - "Publique aqui na resposta quais moldes estão em cada terceiro."
+      - "Para os da Tanamu, que é 73% do gasto: quais voltam e em que ordem?"
+      - "Para cada molde que volta: qual injetora recebe e o que sai dela."
+      - "Se a capacidade interna não comporta, diga isso com número — aí a conversa é outra."
+    sla_resposta_horas: 48
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    O ERP NÃO DIZ qual molde está onde. AD_APONTACICLO tem LOCALINJECAO com o
+    domínio CDI:Construplast | Nitron | Tanamu, mas em 180 dias TODAS as 2.628
+    OPs foram apontadas como "Nitron" — a produção terceirizada não passa pelo
+    apontamento. Por isso a ação pede a lista na resposta.
+    O que o ERP guarda é o CUSTO, e ele basta para dimensionar a decisão.
+    AFERIDO 22/09/26, últimos 12 meses (natureza 3010105): R$ 4.400.168 no
+    total, com TANAMU em R$ 3.195.053 (73%, e R$ 862.655 só no trimestre),
+    MAGIC TOYS R$ 465.390, L PLAST R$ 253.404, J KOVACS R$ 237.291.
+    A métrica é o custo do TRIMESTRE: o de 12 meses é história e não muda com
+    ação; o do trimestre responde se a internalização está acontecendo.
+    PARA MELHORAR: se o apontamento passar a usar LOCALINJECAO de verdade, dá
+    para medir molde a molde em vez de só o custo agregado.

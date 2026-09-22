@@ -1,10 +1,10 @@
 [
   {
-    "ITENS_CARTEIRA": 669,
-    "ITENS_SEM_SALDO": 92,
-    "ITENS_SALDO_PARCIAL": 14,
-    "VLR_EM_RISCO": 287768.76,
-    "ENDERECOS_NEGATIVOS": 4347,
-    "LISTA": "(top 10 itens sem saldo)"
+    "ITENS_CARTEIRA": 605,
+    "ITENS_SEM_SALDO": 28,
+    "ITENS_SALDO_PARCIAL": 12,
+    "VLR_EM_RISCO": 282133.9,
+    "ENDERECOS_NEGATIVOS": 3980,
+    "LISTA": "(top 10 itens ativos sem saldo)"
   }
 ]

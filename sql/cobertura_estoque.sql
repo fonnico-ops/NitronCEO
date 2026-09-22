@@ -21,6 +21,16 @@
 -- Aferido 22/09/2026: 891 produtos com giro | 129 com cobertura < 7 dias |
 -- 138 < 15 dias | 153 < 30 dias | R$ 455.469,99 de venda mensal em risco.
 --
+--
+-- PRODUTO SUSPENSO NÃO ENTRA. TGFPRO.AD_AG_SUSPENSO='S' marca 652 produtos
+-- que saíram de linha ou estão bloqueados. Mandar o PCP produzir um item
+-- suspenso é pedir trabalho que será jogado fora.
+-- Nulo (1.332 produtos) conta como NÃO suspenso: na dúvida, o item aparece.
+-- Efeito medido em 22/09/26 na ruptura: 92 itens sem saldo caem para 28 —
+-- 64 eram suspensos. O valor quase não muda (R$ 287.768 -> R$ 282.134),
+-- porque os suspensos são cauda longa; o que muda é a lista que o PCP
+-- recebe, que deixa de vir com 64 itens que ele não deve produzir.
+--
 -- Params: {{CODEMP}}  {{CODEMP_SALDO}}  {{LOCAL_TRANSFERENCIA}}
 --         {{COBERTURA_ALERTA_DIAS}}
 
@@ -34,7 +44,9 @@ CONSUMO AS (
          SUM(I.VLRTOT - NVL(I.VLRDESC,0))/90 AS VLR_DIA
     FROM TGFCAB C /*CC TGFCAB CC*/
     JOIN TGFITE I ON I.NUNOTA = C.NUNOTA
-   WHERE C.STATUSNOTA = 'L'
+    JOIN TGFPRO P ON P.CODPROD = I.CODPROD
+   WHERE NVL(P.AD_AG_SUSPENSO,'N') <> 'S'
+     AND C.STATUSNOTA = 'L'
      AND C.CODTIPOPER IN (SELECT CODTIPOPER FROM TOPQTD)
      AND C.CODEMP IN ({{CODEMP}})
      AND C.DTNEG >= TRUNC(SYSDATE) - 90
