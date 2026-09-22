@@ -1186,3 +1186,91 @@ kpis:
     CUIDADO AO LER: base alta demais no cadastro esconde o problema e base
     baixa demais inventa um. Máquina muito fora da curva pede conferência do
     cadastro antes da cobrança.
+
+# ---------------------------------------------------------------------------
+# MANUTENÇÃO — ordens de serviço
+# ---------------------------------------------------------------------------
+
+- id: ordens_servico_abertas
+  titulo: Ordens de serviço abertas
+  pergunta: Quantas OS estão abertas, e há quanto tempo?
+  area: producao
+  sql: sql/ordens_servico_abertas.sql
+  frequencia: semanal
+  dia_semana: seg
+  horario: "08:00"
+  metrica: ABERTAS_VELHAS
+  unidade: contagem
+  avaliacao: { tipo: limite_superior, verde: 60, amarelo: 150, vermelho: 300 }
+  dono: gerente_producao
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "{valor} ordens de serviço abertas há mais de 30 dias"
+    passos:
+      - "PRIMEIRO: quantas dessas já foram executadas e só não foram fechadas no sistema? Feche-as."
+      - "Do que sobrar: as 330 que dizem 'equipamento parado' — está parado mesmo?"
+      - "Para as realmente pendentes: prioridade, responsável e data, começando pelas de equipamento parado."
+      - "PREDIAL não tem dono declarado na matriz e tem 168 abertas com mediana de 171 dias. Quem responde?"
+    sla_resposta_horas: 48
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    AD_TGFMANUT, a OS de manutenção. Viva: 12.310 OS, a última aberta em
+    22/09/2026. Aberta = TERMSERV nulo.
+    AFERIDO 22/09/26 — 503 abertas, e SÓ 7 delas têm menos de uma semana:
+      INDUSTRIAL  222 abertas, idade mediana 133 dias, 71 acima de 180d, 184 com equipamento parado
+      PREDIAL     168 abertas, idade mediana 171 dias, 77 acima de 180d, 108 com equipamento parado
+      MOLDES      108 abertas, idade mediana  93 dias, 13 acima de 180d,  34 com equipamento parado
+      GEN           5 abertas
+    A mais antiga tem 602 dias.
+    O CONTRASTE: quem fecha, fecha rápido. Nos últimos 365 dias, MOLDES teve
+    mediana de 0,7 dia e INDUSTRIAL de 1,8 dia. O problema não é a velocidade
+    de execução — é a cauda (72 OS de molde passaram de 30 dias) e o acúmulo.
+    LEITURA HONESTA: 330 OS abertas dizem que o equipamento está PARADO,
+    algumas há mais de um ano. É implausível. O número mistura serviço
+    pendente com OS executada e nunca fechada. Os dois são problema — um de
+    manutenção, outro de disciplina — e o primeiro passo da ação é separá-los.
+    Mesmo padrão das ordens de carga abandonadas.
+    NÃO USA PRIORIDADE: 85% das OS estão marcadas URGENTE. Quando tudo é
+    urgente, nada é.
+    LOCAL é texto livre com 5 grafias de "ferramentaria" — só entra
+    normalizado, e ainda assim com ressalva.
+
+- id: manutencao_preventiva
+  titulo: Preventiva contra corretiva
+  pergunta: A manutenção está prevenindo ou apagando incêndio?
+  area: producao
+  sql: sql/manutencao_preventiva.sql
+  frequencia: mensal
+  dia_mes: 5
+  horario: "08:00"
+  metrica: PCT_PREVENTIVA
+  unidade: percentual
+  avaliacao: { tipo: limite_inferior, verde: 30, amarelo: 20, vermelho: 12 }
+  dono: gerente_producao
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "Só {valor}% das ordens de serviço são preventivas"
+    passos:
+      - "Existe plano de preventiva escrito, com periodicidade por equipamento?"
+      - "Se existe e não é cumprido: falta gente, peça ou janela de parada?"
+      - "Qual seria o percentual realista para os próximos 90 dias, e o que precisa para chegar lá."
+    sla_resposta_horas: 48
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    AD_TGFMANUT.TIPOMANUT separa CORRETIVA de PREVENTIVA. É o indicador mais
+    direto de maturidade de manutenção que existe — não depende de meta nem
+    de benchmark externo, só da própria operação.
+    AFERIDO 22/09/26 na base histórica completa: CORRETIVA 11.090 (90,1%),
+    PREVENTIVA 1.220 (9,9%). Nove em cada dez OS são para consertar algo que
+    já quebrou.
+    Isso explica parte de outros dois KPIs desta matriz: manutencao_molde
+    (773 horas de injetora parada por molde em 30 dias) e ciclos_altos
+    (mediana em 128,5% do ciclo base). Máquina que só recebe atenção depois
+    de quebrar roda mais devagar antes de quebrar.
+    Os limiares (30/20/12) são o padrão de manutenção industrial para uma
+    operação que quer sair do modo reativo, não um benchmark do setor. Vale
+    acordar com a produção antes de tratar o vermelho como falha.

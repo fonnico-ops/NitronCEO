@@ -18,7 +18,7 @@ Um indicador que não chega até `cobrar` não entra na matriz.
 
 ## Estado hoje
 
-32 KPIs. **28 cobram. 4 estão em sombra** — medem e aparecem no pulso, mas não
+34 KPIs. **30 cobram. 4 estão em sombra** — medem e aparecem no pulso, mas não
 notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 
 | KPI | Dono | Estado |
@@ -37,7 +37,9 @@ notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 | Recebíveis vencidos | Claudia Ribeiro | ✅ cobra |
 | Ciclo de injeção acima do padrão | Alex Souza e Charles Silva | ✅ cobra |
 | Injetoras paradas agora | Alex Souza e Charles Silva | ✅ cobra |
+| Ordens de serviço abertas | Alex Souza e Charles Silva | ✅ cobra |
 | Paradas sem motivo apontado | Alex Souza e Charles Silva | ✅ cobra |
+| Preventiva contra corretiva | Alex Souza e Charles Silva | ✅ cobra |
 | Tempo de setup das injetoras | Alex Souza e Charles Silva | ✅ cobra |
 | Agenda de carga contra a capacidade | Expedição e Forla Silva | ✅ cobra |
 | Emissão da NTR Log contra o frete pago | Expedição e Forla Silva | ✅ cobra |
@@ -56,7 +58,9 @@ notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 | Performance por representante | Ricardo Miyabara | 🌓 sombra |
 | Entregas reagendadas | Expedição e Forla Silva | 🌓 sombra |
 
-Só o papel **Qualidade** ficou sem KPI. Alex e Charles continuam donos dos
+**Manutenção predial** aparece nas ordens de serviço (168 abertas, mediana de
+171 dias) e não tem dono declarado — hoje cai na produção por falta de
+alternativa. Só o papel **Qualidade** ficou sem KPI. Alex e Charles continuam donos dos
 três de produção — o que está vazio é o papel, não as pessoas. O que
 destravaria: `TGFCAB.AD_MOTIVO` está 100% nulo nas 741 devoluções dos últimos
 180 dias; preenchê-lo separa erro de faturamento (expedição) de defeito de

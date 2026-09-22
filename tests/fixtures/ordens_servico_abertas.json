@@ -1,0 +1,15 @@
+[
+  {
+    "ABERTAS": 503,
+    "ABERTAS_VELHAS": 483,
+    "ABERTAS_ACIMA_180D": 162,
+    "COM_EQPTO_PARADO": 330,
+    "IDADE_MEDIANA": 138,
+    "IDADE_MAX": 602,
+    "PREVENTIVAS": 50,
+    "FECHADAS_365D": 1804,
+    "MEDIANA_FECHAMENTO": 0.8,
+    "FECHADAS_ACIMA_30D": 140,
+    "LISTA": "INDUSTRIAL: 222 abertas, mediana 133d, 184 com equipamento parado · PREDIAL: 168 abertas, mediana 171d, 108 com equipamento parado · MOLDES: 108 abertas, mediana 93d, 34 com equipamento parado · GEN: 5 abertas, mediana 22d, 4 com equipamento parado"
+  }
+]

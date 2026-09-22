@@ -586,3 +586,67 @@ dois problemas.
 problema; base baixa demais inventa um. 14.756 apontamentos sequer têm
 `CICLOBASE` e ficam fora da conta. Máquina muito fora da curva pede
 conferência do cadastro antes da cobrança — está escrito nos passos da ação.
+
+
+---
+
+## 19. Ordens de serviço: 503 abertas, 7 delas com menos de uma semana
+
+`AD_TGFMANUT` é a ordem de serviço de manutenção e está viva — 12.310 OS, a
+última aberta em 22/09/2026. Aberta = `TERMSERV IS NULL`.
+
+| Tipo | Abertas | Idade mediana | Acima de 180d | Equip. parado |
+|---|---|---|---|---|
+| INDUSTRIAL | 222 | **133 dias** | 71 | 184 |
+| PREDIAL | 168 | **171 dias** | 77 | 108 |
+| MOLDES | 108 | 93 dias | 13 | 34 |
+| GEN | 5 | 22 dias | 1 | 4 |
+
+**503 abertas, 483 com mais de 30 dias, e só 7 com menos de uma semana.** A
+mais antiga tem 602 dias.
+
+### O contraste que muda a leitura
+
+Quem fecha, fecha rápido. Nos últimos 365 dias foram 1.804 OS fechadas com
+mediana de **0,8 dia** (MOLDES 0,7 · INDUSTRIAL 1,8 · PREDIAL 4,4 · GEN 13,1).
+
+Então o problema **não é velocidade de execução**. São duas outras coisas: a
+cauda (140 das 1.804 levaram mais de 30 dias) e o acúmulo de um backlog que
+ninguém fecha.
+
+### 330 equipamentos parados há meses — ou OS que ninguém fechou
+
+330 das 503 OS abertas dizem `PARADO = 'SIM'`, várias há mais de um ano. É
+implausível que 330 equipamentos estejam parados há meses numa fábrica que
+está produzindo. O número quase certamente mistura **serviço realmente
+pendente** com **OS executada e nunca fechada no sistema**.
+
+Os dois são problema — um de manutenção, outro de disciplina de processo — e
+o primeiro passo da ação é separá-los. É o mesmo padrão das 58 ordens de
+carga abandonadas.
+
+### Dois campos que não servem para agrupar
+
+- **`PRIORIDADE` perdeu o sentido:** 10.460 das 12.310 OS (85%) estão
+  `URGENTE`. Quando tudo é urgente, nada é — por isso a métrica do KPI não
+  usa prioridade.
+- **`LOCAL` é texto livre** com cinco grafias de "ferramentaria"
+  (`FERRAMENTARIA`, `ferramentaria`, `Ferramentaria`, `FERRAMEMTARIA`,
+  `"FERRAMENTARIA ."`). Só entra normalizado em maiúsculas.
+
+### 90% da manutenção é corretiva
+
+`TIPOMANUT` na base histórica completa: **CORRETIVA 11.090 (90,1%)**,
+PREVENTIVA 1.220 (9,9%). Nos últimos 180 dias está **pior**: 7% (72 de
+1.022), com INDUSTRIAL em 5%.
+
+Isso explica parte de dois outros KPIs desta matriz — `manutencao_molde` (773
+horas de injetora parada por molde em 30 dias) e `ciclos_altos` (mediana em
+128,5% do ciclo base). Máquina que só recebe atenção depois de quebrar roda
+mais devagar antes de quebrar.
+
+### Uma segunda fila, sem dono
+
+`AD_TGFCHAMADOS` (chamados de sistema, com `MODULO` e `STATUSCHAMADO`)
+também está viva: 3.084 chamados, **542 abertos**, última em 21/09/2026. Não
+virou KPI porque não há papel de TI declarado em `pessoas.yaml`.
