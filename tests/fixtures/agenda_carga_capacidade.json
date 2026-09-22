@@ -1,0 +1,12 @@
+[
+  {
+    "DIAS_AGENDADOS": 11,
+    "DIAS_ESTOURADOS": 2,
+    "DIAS_OCIOSOS": 9,
+    "VLR_A_REMANEJAR": 1715609.62,
+    "VLR_OCIOSO": 3512518.91,
+    "VLR_AGENDADO_TOTAL": 3703090.71,
+    "ORDENS_ABANDONADAS": 58,
+    "LISTA": "22/09: R$ 840451 (1,7x a capacidade, 19 ordens abertas) · 29/09: R$ 37728 (dia ocioso) · 01/10: R$ 0 (dia ocioso) · 02/10: R$ 1875158 (3,8x a capacidade, 28 ordens abertas)"
+  }
+]

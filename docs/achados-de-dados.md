@@ -40,7 +40,60 @@ voltar a gravar o motivo, o KPI passa a cobrar a causa em vez do sintoma.
 
 ---
 
-## 3. Setup de máquina — não é mensurável hoje
+## 3. Setup de máquina — RESOLVIDO: a fonte certa é `TPRIWC`
+
+**Correção de 22/09/2026, à noite.** Tudo o que esta seção dizia abaixo
+estava certo sobre as fontes que eu tinha olhado, e errado sobre a conclusão:
+a parada É medida, só não onde eu procurei.
+
+`TPRIWC` guarda os intervalos de parada do centro de trabalho, com
+`AD_CODMTP` apontando para `TPRMTP` (cadastro de motivos). Está **viva**:
+80.308 linhas, última gravação em 22/09/2026 18:28, 3.066 paradas nos
+últimos 30 dias, 13 abertas naquele momento.
+
+Motivos dos últimos 30 dias, por tempo total:
+
+| Cód | Motivo | Tipo | Paradas | Minutos | Média |
+|---|---|---|---|---|---|
+| — | **(sem motivo)** | — | **1.791** | **386.411** | 216 |
+| 30 | LIBERADO | — | 757 | 323.064 | 427 |
+| 10 | **SETUP** | S | 218 | 71.527 | 328 |
+| 7 | Manutenção de máquina | C | 74 | 61.849 | 836 |
+| 6 | **Manutenção de molde** | C | 69 | 46.397 | 672 |
+| 13 | Refeição | — | 124 | 29.744 | 240 |
+| 2 | Falta de operador | — | 19 | 19.399 | 1.021 |
+| 14 | Falta de matéria-prima | — | 12 | 1.561 | 130 |
+| 3 | Preparador | — | 2 | 32 | 16 |
+
+Isso destravou quatro coisas de uma vez:
+
+- **Setup saiu da sombra.** 217 setups fechados em 30 dias, **mediana de
+  115,8 min contra padrão de 40**, apenas 25% dentro do padrão, **711,8 horas
+  perdidas**. A pior é a INJETORA 19: mediana de 496 min em 15 trocas.
+- **Máquinas paradas ganharam o motivo.** O KPI dizia *que* parou; agora diz
+  *por quê*, que sempre foi a pergunta da cobrança.
+- **Projetos/Moldes ganhou seu primeiro KPI.** 773 horas de injetora parada
+  por molde em 30 dias, 30 máquinas afetadas.
+- **Apareceu um indicador sobre o indicador:** 58% das paradas não têm motivo.
+
+### Mediana, não média
+
+A média de setup dá 329 min; a mediana dá 116. A diferença são 8 paradas
+acima de 24 horas (a maior tem 5.459 min = 91 h) — apontamento que ficou
+aberto atravessando turno e fim de semana, não troca de molde. Elas saem do
+cálculo e são contadas à parte: é problema de apontamento, e apontamento e
+setup se resolvem com gente diferente.
+
+### Refeição não é problema
+
+8 das 13 paradas abertas às 18:30 eram refeição. Contá-las dispararia alerta
+todo dia no mesmo horário. Saem do número principal; refeição acima de 90 min
+vira contagem separada, porque aí não é refeição — é apontamento que ninguém
+fechou.
+
+### O que eu tinha concluído antes (mantido como registro)
+
+
 
 O padrão existe: `TPRWCP.TEMPOSETUP` = 40 min nas 45 injetoras.
 O realizado não é gravado desde 31/10/2024.
@@ -55,14 +108,13 @@ OP e o primeiro da OP seguinte na mesma injetora. Resultado medido (7 dias):
 **Mediana de 2 minutos não é troca de molde.** A lacuna está medindo troca de
 `NUCICLO` sem parada física. A aproximação não serve.
 
-**Para destravar,** uma das duas:
-- voltar a gravar a parada de setup numa tabela viva (o domínio `MOTIVO='SM'`
-  já existia e funcionava); ou
-- marcar início/fim de troca de molde no app do PCP, que já escreve em
-  `AD_APONTACICLO` a cada ~120 s.
+Essa conclusão caiu: a instrumentação existia o tempo todo em `TPRIWC`. Fica
+o registro de que a aproximação por lacuna entre OPs **não serve** — se
+alguém tentar de novo, dá mediana de 2 minutos.
 
-Até lá o KPI fica em sombra. É melhor do que publicar 6,9% e deixar a produção
-ser cobrada por um número que não mede o que diz medir.
+Lição para o resto da matriz: "o dado não existe" quase sempre quer dizer "eu
+não achei o dado". Antes de declarar um KPI impossível, vale perguntar a quem
+opera onde ele é gravado.
 
 ---
 
@@ -406,3 +458,68 @@ A métrica do KPI é **dias sem emitir**, não o valor: o padrão da Teak é
 irregular por natureza (1 nota em maio, 18 em agosto), então cobrar variação
 de valor dispararia alarme toda semana. O que é anômalo é o silêncio — maio
 teve uma nota só, e isso deveria ter sido percebido na época.
+
+
+---
+
+## 17. A meta de R$ 500 mil/dia e a agenda que não cabe nela
+
+Regra de negócio dada pela diretoria em 22/09/2026: **R$ 500 mil por dia
+útil, nas empresas 1, 2, 4 e 14** — e o mesmo número vale para faturar e para
+carregar, porque a fábrica escoa na mesma capacidade.
+
+### Onde a operação está contra a meta
+
+Últimos 63 dias úteis nas empresas 1, 2, 4 e 14:
+
+| | |
+|---|---|
+| Média por dia | R$ 364.278 |
+| Mediana | R$ 329.452 |
+| Mínimo | R$ 43.918 |
+| Máximo | R$ 1.295.895 |
+| Dias que bateram R$ 500 mil | **11 de 63 (17,5%)** |
+
+A meta está **37% acima da média realizada**. Isso é escolha de gestão, não
+erro de cálculo — mas o KPI nasce vermelho e continua vermelho até a operação
+mudar. Por isso os limiares dele foram afrouxados (85/70 em vez de 92/85):
+para que "vermelho" continue significando alguma coisa.
+
+### A agenda de carga: 2 dias estourados, 9 ociosos
+
+Próximos 15 dias úteis, por `TGFORD.DTPREVSAIDA`:
+
+| Dia | Agendado | |
+|---|---|---|
+| 02/10 | R$ 1.875.158 | **3,8× a capacidade**, 28 ordens todas abertas |
+| 22/09 | R$ 840.451 | 1,7× a capacidade, 19 ordens abertas |
+| 23/09 | R$ 196.109 | ocioso |
+| 24/09 | R$ 151.456 | ocioso |
+| 25/09 | R$ 154.165 | ocioso |
+| 28/09 | R$ 115.742 | ocioso |
+| 29/09 | R$ 37.728 | ocioso |
+| 30/09 | R$ 79.457 | ocioso |
+| 01/10 | R$ 0 | ocioso |
+| 05/10 | R$ 136.053 | ocioso |
+| 06/10 | R$ 116.773 | ocioso |
+
+**R$ 1.715.609,62 precisam sair das datas que estouram; R$ 3.512.518,91 de
+capacidade estão parados nos outros dias.** O problema não é falta de carga —
+é distribuição.
+
+Mais 58 ordens **abertas** com data prevista vencida há mais de 30 dias:
+carga que nunca saiu e ninguém fechou.
+
+> Armadilha que eu mesmo caí: contar "datas absurdas" sobre a TGFORD inteira
+> dá 22.990 — mas 26.632 ordens FECHADAS têm data vencida, e isso é histórico
+> normal. O número acionável são as **abertas**.
+
+### A carteira não é o gargalo
+
+727 pedidos na carteira roteirizável (45 dias, sem ordem de carga),
+R$ 2.229.298,53, dos quais **R$ 2.011.711,42 com estoque = 4,0 dias de
+meta**. Só R$ 217.587 sem estoque.
+
+Isso fecha o raciocínio: com 4 dias de meta na mão e a capacidade ociosa em 9
+dos próximos 11 dias agendados, **quando o dia não bate R$ 500 mil o gargalo
+não é falta de pedido nem falta de estoque — é a distribuição da agenda.**

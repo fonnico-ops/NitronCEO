@@ -1,10 +1,14 @@
 [
   {
-    "TROCAS_MEDIDAS": 102,
-    "MEDIA_MIN": 6,
-    "MEDIANA_MIN": 2,
+    "SETUPS": 217,
+    "SETUPS_VALIDOS": 209,
+    "APONTAMENTO_SUSPEITO": 8,
+    "MEDIANA_MIN": 115.8,
+    "MEDIA_MIN": 238.7,
     "PADRAO_MIN": 40,
-    "ACIMA_PADRAO": 7,
-    "PCT_ACIMA_PADRAO": 6.9
+    "ACIMA_PADRAO": 155,
+    "PCT_ACIMA_PADRAO": 74.2,
+    "HORAS_PERDIDAS": 711.8,
+    "LISTA": "INJETORA 3: 547 min (3 trocas) · INJETORA 19: 496 min (15 trocas) · INJETORA 24: 409 min (3 trocas)"
   }
 ]

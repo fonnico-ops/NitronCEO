@@ -18,10 +18,8 @@ papeis:
     nome: CEO
     escalonar_para: null
     pessoas:
-      # CONFERIR: é o único endereço que não veio na lista. Troque se o
-      # corporativo do Renato for outro.
-      - nome: Renato
-        email: renato@nitron.com.br
+      - nome: Renato Fonseca
+        email: renato.fonseca@nitron.com.br
 
   financeiro:
     nome: Financeiro

@@ -27,7 +27,7 @@ def test_rodada_completa_sobre_dados_reais(tmp_path):
     motor, repo, _ = _motor(tmp_path)
     rodada = motor.rodar(cobrar=False)
 
-    assert len(rodada.sinais) == 23
+    assert len(rodada.sinais) == 27
     assert not rodada.falhas
 
     texto = pulso(rodada, motor.cfg)

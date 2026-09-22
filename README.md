@@ -18,19 +18,24 @@ Um indicador que não chega até `cobrar` não entra na matriz.
 
 ## Estado hoje
 
-23 KPIs. **18 cobram. 5 estão em sombra** — medem e aparecem no pulso, mas não
+27 KPIs. **23 cobram. 4 estão em sombra** — medem e aparecem no pulso, mas não
 notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 
 | KPI | Dono | Estado |
 |---|---|---|
-| Ritmo de faturamento | Ricardo Miyabara | ✅ cobra |
+| Ritmo de faturamento (meta R$ 500 mil/dia) | Ricardo Miyabara | ✅ cobra |
+| Carteira disponível para faturar | Ricardo Miyabara | ✅ cobra |
 | Ritmo de entrada de pedidos | Ricardo Miyabara | ✅ cobra |
 | Pedidos esperando aprovação ou recusa | Ricardo Miyabara | ✅ cobra |
 | Produtos que pararam de vender | Ricardo Miyabara | ✅ cobra |
 | Ordens de carga montadas/dia | Expedição e Forla Silva | ✅ cobra |
+| Agenda de carga contra a capacidade | Expedição e Forla Silva | ✅ cobra |
 | Notas devolvidas | Alex Souza e Charles Silva | ✅ cobra |
 | Reentradas / refaturamento | Alex Souza e Charles Silva | ✅ cobra |
 | Injetoras paradas agora | Alex Souza e Charles Silva | ✅ cobra |
+| Tempo de setup das injetoras | Alex Souza e Charles Silva | ✅ cobra |
+| Paradas sem motivo apontado | Alex Souza e Charles Silva | ✅ cobra |
+| Injetora parada por molde | Projetos / Moldes | ✅ cobra |
 | Produtos com estoque curto | Anderson Lourenço | ✅ cobra |
 | O que o PCP precisa programar | Anderson Lourenço | ✅ cobra |
 | Ruptura de estoque na carteira | Anderson Lourenço | ✅ cobra |
@@ -44,11 +49,10 @@ notificam ninguém, porque o dado de origem ainda não sustenta uma cobrança.
 | Performance por representante | Ricardo Miyabara | 🌓 sombra |
 | Performance por canal | Ricardo Miyabara | 🌓 sombra |
 | Entregas reagendadas | Expedição e Forla Silva | 🌓 sombra |
-| Tempo de setup das injetoras | Alex Souza e Charles Silva | 🌓 sombra |
 | Despesa sobre faturamento | Claudia Ribeiro | 🌓 sombra |
 
-**Cristiane Alves (Compras)** e **Projetos/Moldes** estão cadastrados e
-nenhum KPI aponta para eles ainda — ver "O que ainda falta decidir" abaixo.
+**Cristiane Alves (Compras)** continua sem KPI — ver "O que ainda falta
+decidir". Projetos/Moldes ganhou o seu em 22/09.
 
 O porquê de cada sombra — e o que destrava cada uma — está em
 [`docs/achados-de-dados.md`](docs/achados-de-dados.md).
@@ -142,13 +146,13 @@ humano**:
    porque não sei quem é gerente de quem. Cada degrau intermediário que você
    declarar em `escalonar_para` é um assunto operacional que para de chegar
    em você.
-2. **O e-mail do Renato.** É o único que não veio na lista; está como
-   `renato@nitron.com.br`.
-3. **A concentração no financeiro.** 5 das 8 cobranças de hoje, e 4 das 5
-   críticas, caem na Claudia. Parte disso é de Compras por natureza — ver a
-   tabela abaixo.
-4. **A meta mensal de faturamento** (`NITRONCEO_META_MENSAL`). Hoje usa
-   R$ 8 mi de placeholder.
+2. **A concentração no financeiro.** 5 das 13 cobranças caem na Claudia.
+   Parte disso é de Compras por natureza — ver a tabela abaixo.
+3. **A meta de R$ 500 mil/dia está 37% acima da média realizada** (R$ 364 mil
+   nos últimos 63 dias úteis, com só 17,5% dos dias batendo). O KPI nasce
+   vermelho e continua vermelho até a operação mudar — é escolha de gestão, e
+   está declarada como tal. Para mudar o número:
+   `NITRONCEO_META_DIA`.
 5. **Os limiares** de cada KPI, com o dono da área. Estão calibrados contra a
    distribuição observada, não contra o orçamento.
 6. **O app no Entra ID**, com `Mail.Send`, `ChannelMessage.Send`,
@@ -196,6 +200,9 @@ que mais mudam resultado:
   por `TIPMOV` descarta a TOP 3110, que é faturamento real.
 - **Filtro de TOP sempre por subquery** em `CODTIPOPER`. `JOIN` na `TGFTOP`
   subconta ~65% do faturamento, porque a tabela é versionada por `DHALTER`.
+- **A meta de R$ 500 mil/dia vale para as empresas 1, 2, 4 e 14** — recorte
+  diferente do resto da matriz de propósito, porque 3 (NTR Log), 17 (Hyak
+  Group) e 20 (ACIUD) não produzem nem expedem.
 - **Devolução exclui a TOP 2203** ("Devolução Simbólica Consignado"). Com ela
   dentro, a devolução aparece perto de 11% do faturamento; sem ela, 0,53%.
 - **Saldo de estoque exclui o `CODLOCAL 1080000`** ("Estoque para

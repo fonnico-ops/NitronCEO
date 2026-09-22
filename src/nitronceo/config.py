@@ -100,15 +100,31 @@ def _params_padrao(matriz: dict[str, Any]) -> dict[str, Any]:
         "CODEMP": codemp,
         # Fonte de saldo: CODEMP 1 está corrompida (3e19 unidades).
         "CODEMP_SALDO": "2,4,14",
-        # Meta de faturamento do mês. Trocar pela meta real do orçamento.
-        "META_MENSAL": os.getenv("NITRONCEO_META_MENSAL", "8000000"),
+        # A meta é DIÁRIA e é a mesma para faturar e para carregar: a
+        # fábrica escoa na mesma capacidade, e separar as duas é o que
+        # produz agenda com dia de R$ 1,8 mi ao lado de dia de R$ 37 mil.
+        "META_DIA": os.getenv("NITRONCEO_META_DIA", "500000"),
+        # Recorte da meta: só as quatro empresas que produzem e expedem.
+        # Diferente do recorte do grupo (que inclui 3 NTR Log, 17 Hyak Group
+        # e 20 ACIUD) de propósito — ver sql/faturamento_ritmo.sql.
+        "CODEMP_META": "1,2,4,14",
+        "AGENDA_DIAS": "15",
         "JANELA_DIAS": "30",
         "JANELA_VENCIDO_DIAS": "365",
         "CARTEIRA_DIAS": "45",
         "PISO_META_PCT": "80",
         "PISO_RELEVANCIA": "5000",
         "MIN_PARADA_ALERTA": "60",
-        "SETUP_TETO_MIN": "240",
+        # Parada de setup acima disto não é troca de molde, é apontamento
+        # que ficou aberto atravessando turno — vira contagem à parte.
+        "SETUP_TETO_MIN": "1440",
+        "SETUP_PADRAO_MIN": "40",
+        # Códigos de TPRMTP (cadastro de motivos de parada).
+        "MOTIVO_SETUP": "10",
+        "MOTIVO_MOLDE": "6",
+        "MOTIVO_REFEICAO": "13",
+        "MOTIVO_LIBERADO": "30",
+        "REFEICAO_TETO_MIN": "90",
         # TOP 2203 = "Devolução Simbólica Consignado": acerto de consignação,
         # não retorno de cliente. Incluí-la infla a devolução em ~3x.
         "TOPS_EXCLUIR_DEVOLUCAO": "2203",

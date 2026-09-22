@@ -33,7 +33,7 @@ kpis:
 
 - id: faturamento_ritmo
   titulo: Ritmo de faturamento
-  pergunta: No ritmo de hoje, fecho o mês na meta?
+  pergunta: No ritmo de hoje, bato a meta do mês?
   area: comercial
   sql: sql/faturamento_ritmo.sql
   frequencia: diaria
@@ -41,26 +41,36 @@ kpis:
   metrica: PCT_PROJECAO_META
   unidade: percentual
   avaliacao:
-    tipo: limite_inferior      # quanto menor, pior
+    tipo: limite_inferior
     verde: 100
-    amarelo: 92
-    vermelho: 85
+    amarelo: 85
+    vermelho: 70
   dono: diretor_comercial
   canal_teams: comercial
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
-    titulo: "Ritmo de faturamento projeta {valor}% da meta"
+    titulo: "Ritmo de faturamento em {valor}% da meta diária"
     passos:
       - "Diga o que muda na semana: quais pedidos entram e de quem."
-      - "Aponte o gargalo real — carteira, estoque ou expedição — com número."
-      - "Se o gargalo não é comercial, nomeie a área e eu cobro lá."
+      - "Se o gargalo é carga e não venda, diga isso — eu cobro a expedição."
+      - "A carteira disponível dá 4 dias de meta. Se não estamos faturando, o problema não é falta de pedido."
     sla_resposta_horas: 4
   status_dado: validado
   modo: ativo
   observacao: >
-    Âncora ATUALCOM='C' + AD_INSEREDASH='S' (não TIPMOV='V' — isso descarta a
-    TOP 3110, que é faturamento real). Validado 22/09/26: set/26 MTD
-    R$ 6.266.686,56 em 4.869 notas; ago/26 fechado R$ 7.468.338,10.
+    META DIÁRIA DE R$ 500.000 nas empresas 1, 2, 4 e 14 — recorte diferente do
+    resto da matriz de propósito: só as que produzem e expedem (fora 3 NTR Log,
+    17 Hyak Group, 20 ACIUD).
+    É o mesmo número que limita a agenda de carga: a fábrica escoa na mesma
+    capacidade, e tratar meta de venda e capacidade de expedição como coisas
+    separadas é como a agenda acaba com dia de R$ 1,8 mi ao lado de dia de
+    R$ 37 mil.
+    AFERIDO 22/09/26, últimos 63 dias úteis: média R$ 364.278/dia, mediana
+    R$ 329.452, e apenas 11 dos 63 dias (17,5%) bateram os R$ 500 mil. A meta
+    está 37% acima da média realizada — é escolha de gestão, não erro de
+    cálculo, mas o KPI vai ficar vermelho até a operação mudar. Os limiares
+    foram afrouxados (85/70 em vez de 92/85) para que "vermelho" continue
+    significando alguma coisa.
 
 - id: pedidos_ritmo
   titulo: Ritmo de entrada de pedidos
@@ -271,7 +281,7 @@ kpis:
 
 - id: maquinas_paradas
   titulo: Injetoras paradas agora
-  pergunta: Quantas das 45 injetoras estão sem tiro neste momento?
+  pergunta: Quantas injetoras estão paradas neste momento, e por quê?
   area: producao
   sql: sql/maquinas_paradas.sql
   frequencia: horaria
@@ -284,17 +294,24 @@ kpis:
   acao:
     titulo: "{valor} injetoras paradas há mais de 1 hora"
     passos:
-      - "Para cada máquina da lista: motivo e previsão de religar."
+      - "A lista já traz o motivo de cada uma. Diga a previsão de religar."
+      - "As sem motivo apontado: quem estava na máquina e o que aconteceu?"
       - "Se é falta de MP ou molde, diga quem está resolvendo e desde quando."
     sla_resposta_horas: 1
   status_dado: validado
   modo: ativo
   observacao: >
-    Fonte é o batimento IoT em TPRWCP.AD_DHCICLO (45 injetoras com
-    AD_MONITORADO='S', sinal vivo). NÃO usar AD_PARADAMAQUINA — morreu em
-    31/10/2024. E AD_ESTADOATUAL está 100% nulo: o sinal confiável é o tempo
-    desde o último ciclo, não o estado declarado.
-    Aferido 22/09/26 16:45 — 45 monitoradas, 1 parada há mais de 60 min.
+    FONTE TROCADA em 22/09/26: TPRIWC (parada aberta = DHFINAL nulo) com o
+    motivo vindo de TPRMTP. O proxy anterior (tempo desde TPRWCP.AD_DHCICLO)
+    dizia QUE parou mas não dizia por quê — e o motivo sempre foi a pergunta
+    da cobrança.
+    REFEIÇÃO (motivo 13) sai do número principal: é parada programada, e em
+    22/09 às 18:30 eram 8 das 13 paradas abertas. Contá-las dispararia alerta
+    todo dia no mesmo horário. Refeição acima de 90 min vira REFEICAO_LONGA —
+    aí não é refeição, é apontamento que ninguém fechou.
+    AFERIDO 22/09/26 18:30 — 13 paradas abertas: INJETORA 15 em manutenção de
+    molde há 139 min, INJETORA 38 em setup há 32 min, duas SEM MOTIVO
+    (INJETORA 35 há 81 min, INJETORA 29 há 61 min) e 8 em refeição.
 
 - id: setup_maquinas
   titulo: Tempo de setup das injetoras
@@ -305,25 +322,32 @@ kpis:
   horario: "07:30"
   metrica: PCT_ACIMA_PADRAO
   unidade: percentual
-  avaliacao: { tipo: limite_superior, verde: 20, amarelo: 40, vermelho: 60 }
+  avaliacao: { tipo: limite_superior, verde: 40, amarelo: 60, vermelho: 80 }
   dono: gerente_producao
   canal_teams: producao
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
-    titulo: "{valor}% das trocas estouraram o padrão de setup"
+    titulo: "{valor}% das trocas de molde estouraram os 40 minutos"
     passos:
-      - "Quais máquinas e quais turnos concentram o estouro."
+      - "Quais máquinas concentram o estouro — a lista traz a mediana de cada uma."
       - "Falta ferramenta, molde pré-aquecido ou gente treinada? Escolha uma."
+      - "Setup apontado acima de 24h não é troca, é apontamento aberto: quem fecha?"
     sla_resposta_horas: 8
-  status_dado: calibrar
-  modo: sombra
+  status_dado: validado
+  modo: ativo
   observacao: >
-    LACUNA REAL. O padrão existe (TPRWCP.TEMPOSETUP = 40 min nas 45 injetoras),
-    mas o REALIZADO não é mais gravado: AD_PARADAMAQUINA (MOTIVO='SM') parou em
-    31/10/2024. O SQL atual infere setup pela lacuna entre o último ciclo de uma
-    OP e o primeiro da OP seguinte na mesma injetora (AD_APONTACICLO +
-    AD_TGPAPO). É uma aproximação — precisa ser conferida contra o chão de
-    fábrica antes de virar cobrança. Ver docs/achados-de-dados.md.
+    SAIU DA SOMBRA em 22/09/26, com a fonte certa: TPRIWC (intervalos de
+    parada do centro de trabalho) + TPRMTP (motivos), motivo 10 = SETUP.
+    A tabela está VIVA — 80.308 linhas, última gravação 22/09/26 18:28.
+    Substitui duas tentativas ruins: AD_PARADAMAQUINA (morta desde 31/10/2024)
+    e a inferência por lacuna entre OPs, que dava mediana de 2 minutos e não
+    media troca de molde nenhuma.
+    AFERIDO (30 dias): 217 setups fechados, MEDIANA de 127 min contra padrão
+    de 40, e apenas 54 (25%) dentro do padrão. 68 passaram de 4 horas.
+    Usa MEDIANA, não média: a média dá 329 min porque 8 paradas passam de 24h
+    (a maior tem 91 horas) — essas são apontamento que ficou aberto
+    atravessando turno, saem do cálculo e são contadas à parte, porque são
+    problema de apontamento e não de setup.
 
 - id: ruptura_estoque
   titulo: Produtos sem estoque com pedido na carteira
@@ -761,3 +785,163 @@ kpis:
     Aferido 22/09/26 (piso R$ 20 mil, queda acima de 30%): 1.071 produtos com
     movimento, 129 em queda, 70 caíram mais de 50%, 7 pararam de vender,
     R$ 3.921.906,88 a menos que o mesmo conjunto gerava no período anterior.
+
+# ---------------------------------------------------------------------------
+# CAPACIDADE — a meta de R$ 500 mil/dia como restrição, não como desejo
+# ---------------------------------------------------------------------------
+
+- id: agenda_carga_capacidade
+  titulo: Agenda de carga contra a capacidade
+  pergunta: A agenda dos próximos dias cabe nos R$ 500 mil por dia?
+  area: logistica
+  sql: sql/agenda_carga_capacidade.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: VLR_A_REMANEJAR
+  unidade: reais
+  avaliacao: { tipo: limite_superior, verde: 200000, amarelo: 600000, vermelho: 1200000 }
+  dono: logistica
+  canal_teams: logistica
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "R$ {valor} agendados acima da capacidade de carga"
+    passos:
+      - "Puxe carga das datas que estouram para os dias ociosos da mesma semana."
+      - "Os dias ociosos estão na lista — não é falta de carga, é distribuição."
+      - "Para o que não cabe na semana: avise o comercial antes do cliente cobrar."
+      - "Ordens abertas com data vencida há mais de 30 dias: fecha ou reprograma?"
+    sla_resposta_horas: 4
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    A regra: a operação carrega e fatura ~R$ 500 mil por dia útil nas empresas
+    1, 2, 4 e 14. Data agendada acima disso não é ambição, é ficção — o
+    caminhão não sai, o pedido não fatura, e o dia seguinte herda a sobra.
+    FONTE: TGFORD.DTPREVSAIDA com o valor dos pedidos da ordem (por subquery
+    escalar, não por join — join multiplicaria o valor da nota).
+    AFERIDO 22/09/26, próximos 15 dias úteis: 11 dias agendados, 2 ESTOURADOS
+    e 9 OCIOSOS. R$ 1.715.609,62 precisam sair das datas que estouram e há
+    R$ 3.512.518,91 de capacidade parada nos outros dias.
+    Os dois estouros: 02/10 com R$ 1.875.158 em 28 ordens TODAS ABERTAS
+    (3,8x a capacidade) e 22/09 com R$ 840.451 (1,7x). No mesmo período,
+    29/09 tem R$ 37.728 e 01/10 tem zero.
+    O problema não é falta de carga — é distribuição.
+    Conta ainda 58 ordens ABERTAS com data prevista vencida há mais de 30
+    dias: carga que nunca saiu e ninguém fechou. (As 26.632 ordens FECHADAS
+    com data vencida são histórico normal e não entram — contá-las foi o
+    primeiro erro desta query.)
+
+- id: carteira_disponivel_faturar
+  titulo: Carteira disponível para faturar
+  pergunta: Tem pedido com estoque para sustentar a meta do dia?
+  area: comercial
+  sql: sql/carteira_disponivel_faturar.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: DIAS_DE_META
+  unidade: contagem
+  avaliacao: { tipo: limite_inferior, verde: 3, amarelo: 2, vermelho: 1 }
+  dono: diretor_comercial
+  canal_teams: comercial
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "Só {valor} dias de meta na carteira atendível"
+    passos:
+      - "Quanto entra de pedido novo esta semana, por representante."
+      - "O que está sem estoque é do PCP — a coluna separa os dois."
+      - "Se a carteira está cheia e não faturamos, o gargalo é expedição."
+    sla_resposta_horas: 8
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Não adianta cobrar R$ 500 mil/dia sem saber se existe o que faturar. Este
+    KPI responde a pergunta que vem antes da meta.
+    AFERIDO 22/09/26 (empresas 1,2,4,14, carteira de 45 dias sem ordem de
+    carga): 727 pedidos e R$ 2.229.298,53, dos quais R$ 2.011.711,42 COM
+    estoque — 4,0 DIAS DE META — e R$ 217.587,11 sem estoque.
+    A leitura que importa: a carteira NÃO é o gargalo hoje. Se o dia não bate
+    R$ 500 mil com 4 dias de meta na mão, o gargalo está na expedição ou na
+    agenda de carga.
+    SIMPLIFICAÇÃO DECLARADA: disponibilidade item a item contra o saldo, SEM
+    alocação sequencial — dois pedidos do mesmo SKU podem ambos aparecer como
+    atendíveis quando o saldo só cobre um, então o número infla um pouco. A
+    alocação correta é trabalho da skill de roteirização, no momento de montar
+    a carga; aqui vale a ordem de grandeza.
+
+# ---------------------------------------------------------------------------
+# PROJETOS / MOLDES
+# ---------------------------------------------------------------------------
+
+- id: manutencao_molde
+  titulo: Injetora parada por molde
+  pergunta: Quanto de produção o molde está tirando da fábrica?
+  area: projetos
+  sql: sql/manutencao_molde.sql
+  frequencia: diaria
+  horario: "07:30"
+  metrica: HORAS_PARADAS
+  unidade: contagem
+  avaliacao: { tipo: limite_superior, verde: 400, amarelo: 700, vermelho: 1100 }
+  dono: projetos
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "{valor} horas de injetora paradas por molde em 30 dias"
+    passos:
+      - "Quais moldes concentram a parada — a lista traz por máquina."
+      - "É manutenção preventiva que não foi feita, ou molde no fim da vida?"
+      - "Para os reincidentes: reforma, substituição ou aceitar o custo? Escolha."
+    sla_resposta_horas: 24
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    PRIMEIRO KPI DE PROJETOS/MOLDES. Antes dele o papel existia no cadastro e
+    não tinha o que cobrar, porque parada de molde não era medida em lugar
+    nenhum vivo. TPRIWC + TPRMTP motivo 6 ("MANUTENÇÃO DE MOLDE",
+    MOTIVOPARADA='C' = corretiva) resolveu isso.
+    AFERIDO 22/09/26 (30 dias): 69 paradas somando 46.397 minutos — 773 HORAS
+    de injetora parada por molde, média de 672 min por parada.
+    Dimensão, no mesmo período: manutenção de máquina 74 paradas / 61.849 min
+    (é da manutenção, não de projetos) e setup 218 paradas / 71.527 min.
+    A métrica é HORAS e não contagem: uma parada de 11 horas e cinco de 20
+    minutos não são o mesmo problema.
+
+# ---------------------------------------------------------------------------
+# QUALIDADE DO APONTAMENTO
+# ---------------------------------------------------------------------------
+
+- id: paradas_sem_motivo
+  titulo: Paradas sem motivo apontado
+  pergunta: A fábrica sabe por que parou?
+  area: producao
+  sql: sql/paradas_sem_motivo.sql
+  frequencia: semanal
+  dia_semana: seg
+  horario: "08:00"
+  metrica: PCT_SEM_MOTIVO
+  unidade: percentual
+  avaliacao: { tipo: limite_superior, verde: 15, amarelo: 30, vermelho: 50 }
+  dono: gerente_producao
+  canal_teams: producao
+  notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
+  acao:
+    titulo: "{valor}% das paradas sem motivo apontado"
+    passos:
+      - "Qual turno e qual máquina concentram a falta de apontamento."
+      - "É falta de treino, tela ruim ou motivo que não existe no cadastro?"
+      - "Enquanto isso não cair, os KPIs de setup e de molde medem só metade."
+    sla_resposta_horas: 48
+  status_dado: validado
+  modo: ativo
+  observacao: >
+    Isto não é indicador de produção — é indicador SOBRE o indicador.
+    AFERIDO 22/09/26 (30 dias): 1.791 das 3.066 paradas (58%) estão SEM
+    MOTIVO, somando 386.411 minutos = 6.440 horas. É a maior linha da tabela
+    de paradas, maior que setup e manutenção juntos.
+    Enquanto 58% do tempo parado não tem causa, nenhum plano de redução pode
+    ser feito, e os KPIs de setup e de molde estão medindo só a parte que
+    alguém se deu ao trabalho de classificar.
+    O motivo 30 ("LIBERADO", 757 paradas / 323.064 min) fica FORA do
+    numerador: tem código, então foi apontado. Se na prática for usado como
+    "não sei", vale rever — mas isso é decisão da produção, não suposição
+    desta query.
