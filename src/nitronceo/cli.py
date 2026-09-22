@@ -8,19 +8,24 @@
     nitronceo validar               # confere matriz + queries sem tocar no ERP
     nitronceo dashboard -o x.html   # gera o painel do pipeline
     nitronceo importar respostas.json   # traz as respostas do painel de volta
+    nitronceo renato                # leitura cruzada da rodada, para o CEO
+    nitronceo renato --dossie       # só o material, sem chamar o modelo
+    nitronceo rodar --com-renato    # ele escreve o texto de cada cobrança
 """
 
 from __future__ import annotations
 
 import argparse
+import os
 import signal
 import sys
 from pathlib import Path
 
+from .analista import Renato, SemCredencial, montar_dossie
 from .config import RAIZ, carregar
 from .dashboard import gerar
 from .motor import Motor, pulso
-from .notificadores import Console, EmailOutlook, Teams
+from .notificadores import Console, EmailOutlook, GoHighLevel, Teams
 from .repositorio import Repositorio
 from .sankhya import FonteArquivo, SankhyaREST, montar_sql
 
@@ -31,12 +36,20 @@ def _montar(args) -> tuple[Motor, Repositorio]:
 
     if args.dry_run:
         fonte = FonteArquivo(Path(args.fixtures))
-        notificadores = {"teams": Console(), "email": Console()}
+        notificadores = {"teams": Console(), "email": Console(), "ghl": Console()}
     else:
         fonte = SankhyaREST()
         notificadores = {"teams": Teams(), "email": EmailOutlook()}
+        # O GHL só entra se estiver configurado. Ausente, os outros canais
+        # continuam entregando — ele é canal a mais, não substituto.
+        if os.getenv("GHL_TOKEN") and os.getenv("GHL_LOCATION_ID"):
+            notificadores["ghl"] = GoHighLevel()
 
-    return Motor(cfg, fonte, repo, notificadores), repo
+    redator = None
+    if getattr(args, "com_renato", False):
+        redator = Renato(cfg)
+
+    return Motor(cfg, fonte, repo, notificadores, redator=redator), repo
 
 
 def cmd_rodar(args) -> int:
@@ -101,11 +114,28 @@ def cmd_dashboard(args) -> int:
     motor, repo = _montar(args)
     # O painel só lê: nada de mensagem para ninguém ao gerar o HTML.
     motor.notificadores = {}
+    motor.redator = None  # aqui o Renato analisa; redigir é da rodada de cobrança
     try:
         rodada = motor.rodar(apenas=None, cobrar=False)
         abertas = repo.acoes_em_aberto()
         cobrancas, escaladas = repo.totais_de_cobranca()
-        html = gerar(motor.cfg, rodada.sinais, abertas, cobrancas, escaladas)
+
+        leitura = None
+        if getattr(args, "com_renato", False):
+            historico = {
+                s.kpi_id: repo.dias_consecutivos_ruins(s.kpi_id)
+                for s in rodada.sinais
+            }
+            try:
+                leitura = Renato(motor.cfg).leitura(rodada.sinais, abertas, historico)
+            except (SemCredencial, RuntimeError) as exc:
+                # Painel sem a leitura ainda é o painel. Não vale derrubar a
+                # geração por causa da camada opinativa.
+                print(f"Sem a leitura do Renato: {exc}", file=sys.stderr)
+
+        html = gerar(
+            motor.cfg, rodada.sinais, abertas, cobrancas, escaladas, leitura
+        )
         destino = Path(args.saida)
         destino.parent.mkdir(parents=True, exist_ok=True)
         destino.write_text(html, encoding="utf-8")
@@ -162,6 +192,51 @@ def cmd_importar(args) -> int:
         repo.fechar()
 
 
+def cmd_renato(args) -> int:
+    """A leitura cruzada da rodada — o que a matriz sozinha não enxerga.
+
+    Mede tudo sem notificar ninguém, monta o dossiê e pede ao Renato a
+    leitura. Com `--dossie`, para no material e não chama o modelo: útil
+    para conferir o que ele estaria vendo antes de gastar uma chamada.
+    """
+    motor, repo = _montar(args)
+    motor.notificadores = {}
+    motor.redator = None  # aqui ele analisa; escrever cobrança é outro comando
+    try:
+        rodada = motor.rodar(apenas=args.kpi, cobrar=False)
+        abertas = repo.acoes_em_aberto()
+        historico = {
+            s.kpi_id: repo.dias_consecutivos_ruins(s.kpi_id) for s in rodada.sinais
+        }
+
+        if args.dossie:
+            print(montar_dossie(rodada.sinais, abertas, motor.cfg, historico))
+            return 0
+
+        try:
+            leitura = Renato(motor.cfg).leitura(rodada.sinais, abertas, historico)
+        except SemCredencial as exc:
+            print(f"Renato não rodou: {exc}", file=sys.stderr)
+            print("\nO dossiê que ele teria lido:\n", file=sys.stderr)
+            print(montar_dossie(rodada.sinais, abertas, motor.cfg, historico))
+            return 1
+
+        print(leitura.texto)
+        print(
+            f"\n_{leitura.modelo} · {leitura.gerada_em:%d/%m %H:%M} · "
+            f"{leitura.custo_em_cache} · {leitura.tokens_saida} de saída._"
+        )
+        if rodada.falhas:
+            print(
+                f"\n⚠️ {len(rodada.falhas)} KPI(s) não mediram; a leitura "
+                "acima foi feita sem eles.",
+                file=sys.stderr,
+            )
+        return 0
+    finally:
+        repo.fechar()
+
+
 def cmd_validar(args) -> int:  # noqa: ARG001
     """Confere a matriz e monta todo o SQL sem executar nada."""
     cfg = carregar()
@@ -209,7 +284,21 @@ def main(argv: list[str] | None = None) -> int:
     sp = comum(sub.add_parser("rodar", help="mede, julga, abre ações e cobra"))
     sp.add_argument("--kpi", action="append", help="limita a estes KPIs")
     sp.add_argument("--sem-cobranca", action="store_true")
+    sp.add_argument(
+        "--com-renato",
+        action="store_true",
+        help="o Renato escreve o texto de cada cobrança (cai no padrão se falhar)",
+    )
     sp.set_defaults(func=cmd_rodar)
+
+    sp = comum(sub.add_parser("renato", help="leitura cruzada da rodada, para o CEO"))
+    sp.add_argument("--kpi", action="append", help="limita a estes KPIs")
+    sp.add_argument(
+        "--dossie",
+        action="store_true",
+        help="imprime só o material da análise, sem chamar o modelo",
+    )
+    sp.set_defaults(func=cmd_renato)
 
     comum(sub.add_parser("cobrar", help="só a escada de cobrança")).set_defaults(
         func=cmd_cobrar
@@ -232,6 +321,11 @@ def main(argv: list[str] | None = None) -> int:
 
     sp = comum(sub.add_parser("dashboard", help="gera o painel do pipeline"))
     sp.add_argument("-o", "--saida", default="dashboard.html")
+    sp.add_argument(
+        "--com-renato",
+        action="store_true",
+        help="inclui a leitura cruzada do Renato no topo do painel",
+    )
     sp.set_defaults(func=cmd_dashboard)
 
     args = p.parse_args(argv)

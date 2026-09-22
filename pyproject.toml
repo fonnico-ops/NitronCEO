@@ -5,6 +5,13 @@ description = "Matriz de cobrança executiva do Grupo Nitron"
 requires-python = ">=3.10"
 dependencies = ["PyYAML>=6.0", "requests>=2.31"]
 
+# O Renato (análise e redação) precisa do SDK da Anthropic. Fica opcional
+# de propósito: a matriz mede, julga e cobra sem ele, e um deploy que só
+# precisa das cobranças não deve arrastar a dependência.
+#     pip install -e ".[renato]"
+[project.optional-dependencies]
+renato = ["anthropic>=1.0"]
+
 [project.scripts]
 nitronceo = "nitronceo.cli:main"
 

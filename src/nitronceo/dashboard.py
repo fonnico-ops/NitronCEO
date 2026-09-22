@@ -319,8 +319,62 @@ def _carga(acoes: list[Acao], cfg: Config) -> str:
     )
 
 
+def _leitura_html(leitura) -> str:
+    """A leitura do Renato, no topo do painel.
+
+    Fica marcada como escrita por ele de propósito: o resto do painel são
+    números apurados, e quem lê precisa saber onde termina a apuração e
+    começa a interpretação.
+    """
+    if leitura is None:
+        return ""
+    corpo = _md(leitura.texto)
+    return (
+        '<section class="secao renato">'
+        '<h2 class="secao__tit">Leitura do Renato</h2>'
+        f'<div class="renato__corpo">{corpo}</div>'
+        f'<p class="renato__pe">Interpretação gerada por {_e(leitura.modelo)} '
+        f"em {leitura.gerada_em:%d/%m %H:%M} a partir dos números acima. "
+        "Os números são do ERP; a leitura é dele.</p>"
+        "</section>"
+    )
+
+
+def _md(texto: str) -> str:
+    """Markdown mínimo — só o que o Renato usa: ##, ###, listas e **."""
+
+    partes: list[str] = []
+    lista = False
+    for bruta in texto.splitlines():
+        linha = bruta.strip()
+        item = linha.startswith(("- ", "* "))
+        if lista and not item:
+            partes.append("</ul>")
+            lista = False
+        if item:
+            if not lista:
+                partes.append("<ul>")
+                lista = True
+            partes.append(f"<li>{_negrito(linha[2:])}</li>")
+        elif linha.startswith("### "):
+            partes.append(f"<h4>{_negrito(linha[4:])}</h4>")
+        elif linha.startswith("## "):
+            partes.append(f"<h3>{_negrito(linha[3:])}</h3>")
+        elif linha:
+            partes.append(f"<p>{_negrito(linha)}</p>")
+    if lista:
+        partes.append("</ul>")
+    return "".join(partes)
+
+
+def _negrito(trecho: str) -> str:
+    import re
+
+    return re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", _e(trecho))
+
+
 def gerar(cfg: Config, sinais: list[Sinal], acoes: list[Acao],
-          cobrancas: int = 0, escaladas: int = 0) -> str:
+          cobrancas: int = 0, escaladas: int = 0, leitura=None) -> str:
     por_id = {k["id"]: k for k in cfg.matriz["kpis"]}
     acao_por_kpi = {a.kpi_id: a for a in acoes}
     agora = datetime.now()
@@ -702,6 +756,15 @@ h1,h2,h3 {{ font-family:"Archivo","Segoe UI",system-ui,sans-serif;
 .carga__fill {{ display:block; height:100%; background:var(--accent);
   border-radius:0 1px 1px 0; }}
 .carga__n {{ font-size:12px; color:var(--ink-2); white-space:nowrap; }}
+.renato {{ border-left:3px solid var(--accent); }}
+.renato__corpo h3 {{ font:600 15px/1.3 Archivo,sans-serif; margin:18px 0 6px;
+  color:var(--accent); }}
+.renato__corpo h4 {{ font:600 13px/1.3 Archivo,sans-serif; margin:14px 0 4px; }}
+.renato__corpo p, .renato__corpo li {{ font-size:14px; line-height:1.55;
+  color:var(--ink-2); }}
+.renato__corpo ul {{ margin:6px 0 6px 18px; }}
+.renato__pe {{ margin-top:16px; padding-top:10px; border-top:1px solid var(--hair);
+  font-size:12px; color:var(--muted); }}
 @media (max-width:520px) {{
   .carga__linha {{ grid-template-columns:1fr auto; }}
   .carga__trilho {{ grid-column:1/-1; }}
@@ -738,6 +801,8 @@ h1,h2,h3 {{ font-family:"Archivo","Segoe UI",system-ui,sans-serif;
         {sum(1 for s in sinais if s.modo == "sombra")} em sombra</div>
     </div>
   </div>
+
+  {_leitura_html(leitura)}
 
   <section class="secao">
     <h2 class="secao__tit">Do número à resposta — clique numa etapa</h2>

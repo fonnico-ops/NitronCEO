@@ -15,7 +15,7 @@ import os
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Any
+from typing import Any, Protocol
 
 from .acoes import Acao, Estado, criar, formatar
 from .avaliador import Nivel, Sinal, avaliar
@@ -31,6 +31,18 @@ PAINEL = os.getenv(
     "NITRONCEO_PAINEL", "https://claude.ai/artifact/3aE3YSU2uJY5QW4PHDfsqz"
 )
 
+class Redator(Protocol):
+    """Quem sabe escrever a cobrança melhor que o template.
+
+    Implementado por `analista.Renato`. Devolver None ou levantar exceção
+    é resposta válida: o motor volta ao texto determinístico e segue.
+    """
+
+    def texto_cobranca(
+        self, acao: Acao, sinal: Sinal, kpi: dict[str, Any]
+    ) -> str | None: ...
+
+
 ICONE = {
     Nivel.VERDE: "🟢",
     Nivel.AMARELO: "🟡",
@@ -45,6 +57,7 @@ class Rodada:
     acoes_novas: list[Acao] = field(default_factory=list)
     cobrancas: list[Cobranca] = field(default_factory=list)
     falhas: list[tuple[str, str]] = field(default_factory=list)
+    falhas_de_redacao: list[tuple[str, str]] = field(default_factory=list)
 
 
 class Motor:
@@ -55,12 +68,18 @@ class Motor:
         repo: Repositorio,
         notificadores: dict[str, Notificador],
         raiz: Path = RAIZ,
+        redator: Redator | None = None,
     ) -> None:
         self.cfg = cfg
         self.fonte = fonte
         self.repo = repo
         self.notificadores = notificadores
         self.raiz = Path(raiz)
+        # Quem escreve o corpo da cobrança. Sem redator, o texto é o
+        # determinístico de sempre — que é o certo por padrão: o modelo
+        # pode cair, e uma cobrança que não sai é pior que uma genérica.
+        self.redator = redator
+        self.falhas_de_redacao: list[tuple[str, str]] = []
 
     # ------------------------------------------------------------------ medir
 
@@ -75,6 +94,7 @@ class Motor:
 
     def rodar(self, apenas: list[str] | None = None, cobrar: bool = True) -> Rodada:
         rodada = Rodada()
+        self.falhas_de_redacao = []
 
         for kpi in self.cfg.matriz["kpis"]:
             if apenas and kpi["id"] not in apenas:
@@ -97,6 +117,7 @@ class Motor:
         if cobrar:
             rodada.cobrancas = self.cobrar_pendentes()
 
+        rodada.falhas_de_redacao = list(self.falhas_de_redacao)
         return rodada
 
     # ----------------------------------------------------------------- cobrar
@@ -129,7 +150,7 @@ class Motor:
         reincidencia = self.repo.dias_consecutivos_ruins(kpi["id"])
         msg = Mensagem(
             assunto=f"{ICONE[sinal.nivel]} {acao.titulo}",
-            corpo_md=self._corpo_acao(acao, sinal, kpi, reincidencia),
+            corpo_md=self._corpo(acao, sinal, kpi, reincidencia),
             destinatarios=papel.emails,
             urgente=sinal.nivel is Nivel.CRITICO,
             canal_equipe=self.cfg.canal_teams(kpi.get("canal_teams")),
@@ -164,6 +185,34 @@ class Motor:
         )
         canais = ["teams", "email"] if cobranca.escalada else ["teams"]
         self._despachar(canais, msg, papel.emails)
+
+    def _corpo(
+        self, acao: Acao, sinal: Sinal, kpi: dict[str, Any], reincidencia: int
+    ) -> str:
+        """Texto da cobrança: do redator quando ele responde, do template
+        quando não. A falha do redator nunca impede o disparo."""
+        if self.redator is not None:
+            try:
+                escrito = self.redator.texto_cobranca(acao, sinal, kpi)
+            except Exception as exc:
+                self.falhas_de_redacao.append((acao.id, str(exc)))
+                escrito = None
+            if escrito:
+                return "\n".join([escrito, "", *self._rodape(acao, sinal, kpi)])
+        return self._corpo_acao(acao, sinal, kpi, reincidencia)
+
+    def _rodape(self, acao: Acao, sinal: Sinal, kpi: dict[str, Any]) -> list[str]:
+        """O que é do sistema, não do redator: prazo, link e procedência."""
+        return [
+            f"Prazo de resposta: {acao.prazo:%d/%m às %H:%M} "
+            f"({acao.horas_restantes():.0f}h).",
+            f"**Responda no painel:** {PAINEL}#cob-{acao.id}",
+            "Um retorno parcial é bem-vindo e não para o relógio; marque "
+            "*isto encerra a cobrança* só quando o assunto estiver resolvido.",
+            "",
+            f"_Base do número: {kpi['sql']} — apurado em "
+            f"{sinal.medido_em:%d/%m/%Y %H:%M}._",
+        ]
 
     def _corpo_acao(
         self, acao: Acao, sinal: Sinal, kpi: dict[str, Any], reincidencia: int
@@ -265,5 +314,14 @@ def pulso(rodada: Rodada, cfg: Config) -> str:
     if rodada.falhas:
         linhas += ["", "### KPIs que não mediram"]
         linhas += [f"- {kid}: {erro}" for kid, erro in rodada.falhas]
+
+    if rodada.falhas_de_redacao:
+        # A cobrança saiu — com o texto padrão. Vale registrar porque é
+        # sintoma de credencial vencida, não de problema na operação.
+        linhas += ["", "### Cobranças que saíram com o texto padrão"]
+        linhas += [
+            f"- {aid}: o redator não respondeu — {erro}"
+            for aid, erro in rodada.falhas_de_redacao
+        ]
 
     return "\n".join(linhas)

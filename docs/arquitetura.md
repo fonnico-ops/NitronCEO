@@ -2,15 +2,19 @@
 
 ```
               ┌──────────────┐
-              │ matriz.yaml  │  13 KPIs: SQL, limiar, dono, ação, SLA
+              │ matriz.yaml  │  37 KPIs: SQL, limiar, dono, ação, SLA
               │ pessoas.yaml │  papéis e escada de escalonamento
+              │ renato.md    │  persona e conhecimento da IA de gestão
               └──────┬───────┘
                      │
-   Sankhya ──────► Motor ──────► SQLite ──────► Teams / Outlook
-   (Oracle,      medir            sinais         (Microsoft Graph)
-    leitura)     julgar           ações
-                 atribuir         cobranças
-                 cobrar
+   Sankhya ──────► Motor ──────► SQLite ──────► Teams / Outlook / GHL
+   (Oracle,      medir            sinais         (Graph, LeadConnector)
+    leitura)     julgar           ações              ▲
+                 atribuir         cobranças          │
+                 cobrar                              │
+                     │                               │
+                     └──────► Renato (claude-opus-5) ┘
+                              leitura cruzada + texto da cobrança
 ```
 
 ## Fluxo de uma rodada
@@ -28,6 +32,39 @@
 
 O passo 4 é independente do 1: numa rodada em que tudo esteja verde, as
 cobranças pendentes de ontem continuam subindo.
+
+## O Renato
+
+Os cinco passos acima são determinísticos de ponta a ponta, e isso é o que
+os torna auditáveis: o mesmo dia de dados produz sempre a mesma cobrança,
+para a mesma pessoa, com o mesmo prazo. É também o teto deles — a matriz
+compara um número com um limiar de cada vez e nunca vê que a mesma
+injetora é a pior em setup *e* em ciclo.
+
+`analista.py` é a camada que olha o conjunto. Ela recebe o dossiê já
+apurado (`montar_dossie`) com a persona e os achados de dados carregados
+como prefixo em cache, e devolve duas coisas:
+
+- **a leitura cruzada** para o CEO — `nitronceo renato`;
+- **o texto de uma cobrança**, quando o template não dá conta do contexto
+  — `nitronceo rodar --com-renato`.
+
+Três limites deliberados:
+
+1. **Ele não decide cobrança.** Dono, prazo e nível continuam vindo da
+   regra. O que ele escolhe é a redação e a leitura, nunca o alvo.
+2. **Ele não fica no caminho crítico.** Se o modelo falhar, a cobrança sai
+   com o texto determinístico e a rodada registra a falha em
+   `falhas_de_redacao` — uma cobrança genérica é infinitamente melhor que
+   uma cobrança que não saiu.
+3. **Prazo, link do painel e procedência do número são do sistema**, não
+   dele: entram como rodapé depois do texto, para não dependerem de o
+   modelo ter lembrado.
+
+O prefixo (`config/renato.md` + `docs/achados-de-dados.md` + os papéis
+vigentes) tem cerca de 40 mil tokens e é idêntico entre rodadas, então
+carrega `cache_control: ephemeral` no último bloco. A linha de rodapé de
+`nitronceo renato` mostra quanto veio do cache.
 
 ## Decisões que valem explicação
 
@@ -58,9 +95,19 @@ contra um dia de verdade.
 |---|---|---|
 | Sankhya | leitura (`DbExplorerSP`) | `SANKHYA_URL`, `SANKHYA_USER`, `SANKHYA_PASSWORD` |
 | Microsoft Graph | Teams + Outlook | `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `MS_REMETENTE` |
+| Claude API | Renato (análise e redação) | `ANTHROPIC_API_KEY` |
+| Go High Level | canal de e-mail alternativo | `GHL_TOKEN`, `GHL_LOCATION_ID`, `GHL_REMETENTE`, `GHL_TAG_INTERNA` |
 
 Permissões de aplicação necessárias no Entra ID: `Mail.Send`,
 `ChannelMessage.Send`, `Chat.Create`, `ChatMessage.Send`.
 
 Se a TI não liberar chat 1:1 por client credentials, o fallback é mandar no
 canal da área e usar o e-mail como trilha individual.
+
+**O GHL ainda não é um canal utilizável para cobrança interna.** A location
+da Nitron contém clientes, não funcionários: buscar
+`cristiane.alves@nitron.com.br` lá resolve para um contato de cliente com
+tags de campanha. Por isso `notificadores/ghl.py` exige que o contato tenha
+e-mail idêntico **e** a tag `nitron-interno`, e recusa o envio quando
+qualquer das duas falta. Para ligar o canal, é preciso cadastrar os donos de
+cobrança (de preferência numa sub-conta separada) e marcá-los com a tag.

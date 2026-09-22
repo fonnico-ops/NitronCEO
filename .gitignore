@@ -1,8 +1,10 @@
-__pycache__/
-*.py[cod]
-.pytest_cache/
-dados/
 *.db
+*.egg-info/
+*.py[cod]
 .env
+.pytest_cache/
 .venv/
+__pycache__/
+dados/
 dashboard.html
+egg-info/

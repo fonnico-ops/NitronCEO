@@ -1,13 +1,19 @@
 # NitronCEO
 
 Uma matriz que mede o negócio, julga o que está fora da linha, **abre ação com
-dono e prazo**, e **cobra quem não responde** — por Teams e e-mail.
+dono e prazo**, e **cobra quem não responde** — por Teams, e-mail e GHL.
+
+Em cima dela roda o **Renato**, a IA de gestão: ele conhece a empresa, lê os
+37 sinais como conjunto em vez de um a um, e escreve a cobrança quando o
+texto padrão não dá conta.
 
 O cockpit do Sankhya já mostra os números. O que não existia é o que acontece
 **depois** do número ficar vermelho — e é isso que este repositório é:
 
 ```
 medir → julgar → atribuir → cobrar → escalar → registrar
+                                ↑
+                             Renato — lê o conjunto, redige, reporta ao CEO
 ```
 
 Tem painel (`nitronceo dashboard`), mas o painel mostra o **pipeline de
@@ -94,6 +100,38 @@ nitronceo pendentes
 nitronceo responder a1b2c3d4e5f6 "Protesto entra quinta; top 3 já em acordo."
 nitronceo importar respostas.json    # respostas vindas do painel publicado
 ```
+
+### O Renato
+
+```bash
+pip install -e ".[renato]"
+export ANTHROPIC_API_KEY=...
+
+# o material que ele leria, sem gastar uma chamada
+nitronceo renato --dry-run --dossie
+
+# a leitura cruzada da rodada, para o CEO
+nitronceo renato
+
+# ele escreve o texto de cada cobrança desta rodada
+nitronceo rodar --com-renato
+```
+
+`config/renato.md` é quem ele é: a persona, o mapa de empresas e donos, as
+armadilhas de dado já descobertas e as regras de como ele escreve. Editar
+esse arquivo muda o comportamento dele — ele não é documentação *sobre* o
+Renato, ele **é** o Renato.
+
+Três limites, de propósito:
+
+- **ele não escolhe quem cobrar.** Dono, prazo e nível continuam vindo da
+  regra determinística; ele escolhe a redação e a leitura.
+- **ele não fica no caminho crítico.** Modelo fora do ar → a cobrança sai
+  com o texto padrão e a rodada registra a falha. Cobrança genérica é
+  melhor que cobrança que não saiu.
+- **ele não inventa número.** Só cita o que está no dossiê apurado; prazo,
+  link do painel e procedência do número são acrescentados pelo sistema,
+  não por ele.
 
 ### Painel
 
@@ -256,8 +294,9 @@ Base metodológica: skill `sankhya-especialista` do Grupo Nitron.
 ## Estrutura
 
 ```
-config/matriz.yaml      os 13 KPIs — limiar, dono, ação, SLA
+config/matriz.yaml      os 37 KPIs — limiar, dono, ação, SLA
 config/pessoas.yaml     papéis e escada de escalonamento
+config/renato.md        a persona e o conhecimento da IA de gestão
 sql/*.sql               uma query por KPI, com a metodologia no cabeçalho
 src/nitronceo/
   sankhya.py            leitura do ERP; recusa comando de escrita
@@ -266,12 +305,13 @@ src/nitronceo/
   cobranca.py           a escada: dono → gestor → CEO → para
   repositorio.py        SQLite: sinais, ações, cobranças
   motor.py              orquestração + pulso do CEO
+  analista.py           Renato: dossiê, leitura cruzada, redação da cobrança
   dashboard.py          painel do pipeline: drill-down + respostas
-  notificadores/        console (dry-run), Teams e Outlook via Graph
-tests/                  20 testes; 23 fixtures com dados reais de produção
+  notificadores/        console (dry-run), Teams/Outlook (Graph) e GHL
+tests/                  37 testes; 23 fixtures com dados reais de produção
 docs/                   arquitetura, governança, achados de dados
 ```
 
 ```bash
-python -m pytest tests/ -q     # 20 passed
+python -m pytest tests/ -q     # 37 passed
 ```
