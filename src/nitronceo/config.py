@@ -87,6 +87,12 @@ class Config:
             for chave, dados in self.pessoas["papeis"].items()
         }
 
+    @property
+    def acompanhamento(self) -> list[Pessoa]:
+        """Quem recebe o relatório diário. Lista vazia é válida: sem
+        ninguém declarado, o relatório é gerado e não é enviado."""
+        return [Pessoa(**p) for p in self.pessoas.get("acompanhamento", [])]
+
     def papel(self, chave: str) -> Papel:
         try:
             return self.papeis[chave]

@@ -145,6 +145,26 @@ papeis:
         email: projetos3@nitron.com.br
         ghl_contato: dxyUq1pvf1BbaMWnp2hW
 
+# Quem recebe o relatório completo todo dia, para acompanhar.
+#
+# Não é cobrança: ninguém aqui tem prazo, entra na escada ou é lembrado se
+# não responder. É o quadro inteiro — todas as áreas — para quem precisa
+# ver o conjunto. Uma pessoa pode estar aqui E ser dona de cobrança; são
+# coisas separadas, e ela recebe as duas.
+acompanhamento:
+  - nome: Renato Fonseca
+    email: renato.fonseca@nitron.com.br
+    # Sem ghl_contato: o contato bnKA8BWCRaTeiBC2rjRs é um lead de
+    # campanha (tag `lead-puro`, Nina Financeiro, anúncio de Instagram).
+    # Relatório de gestão não entra numa conversa de anúncio. Crie um
+    # contato limpo para ele e declare o id aqui.
+  - nome: Ricardo Fonseca
+    email: ricardo.fonseca@nitron.com.br
+    ghl_contato: yqVKiGxKHZVXoY5UwD5n
+  - nome: Cristiane Alves
+    email: cristiane.alves@nitron.com.br
+    ghl_contato: Ua22DoxS9R7fHjNCDdHD
+
 canais_teams:
   # Canal de time, para o sinal que é do grupo e não de uma pessoa.
   # Confira os nomes exatos do Teams antes de ativar o envio — o motor procura

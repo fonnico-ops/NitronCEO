@@ -10,6 +10,8 @@
     nitronceo importar respostas.json   # traz as respostas do painel de volta
     nitronceo respostas             # lê a caixa e amarra as respostas às ações
     nitronceo ghl-contatos          # resolve os contatos do GHL e aponta colisões
+    nitronceo relatorio             # o quadro do dia para quem acompanha
+    nitronceo relatorio --enviar    # e manda para a lista de acompanhamento
     nitronceo renato                # leitura cruzada da rodada, para o CEO
     nitronceo renato --dossie       # só o material, sem chamar o modelo
     nitronceo rodar --com-renato    # ele escreve o texto de cada cobrança
@@ -27,6 +29,7 @@ from .analista import Renato, SemCredencial, montar_dossie
 from .config import RAIZ, carregar
 from .dashboard import gerar
 from .motor import Motor, pulso
+from .relatorio import montar
 from .notificadores import Console, EmailOutlook, GoHighLevel, Teams
 from .notificadores.graph import _Graph
 from .respostas import LeitorDeCaixa, LeitorDoGHL
@@ -324,6 +327,80 @@ def _mostrar_respostas(lidas, onde: str, dias: int) -> int:
     return 0
 
 
+def cmd_relatorio(args) -> int:
+    """O quadro inteiro do dia para quem acompanha, sem cobrar ninguém.
+
+    Mede tudo e NÃO notifica dono nenhum: as cobranças têm o ciclo delas,
+    com prazo e escada. Este relatório é outra coisa — vai para a lista de
+    `acompanhamento` do pessoas.yaml, e não pede resposta de ninguém.
+    """
+    motor, repo = _montar(args)
+    motor.notificadores = {}   # medir aqui nunca dispara cobrança
+    motor.redator = None
+    try:
+        rodada = motor.rodar(apenas=None, cobrar=False)
+        abertas = repo.acoes_em_aberto()
+
+        leitura = None
+        if args.com_renato:
+            historico = {
+                s.kpi_id: repo.dias_consecutivos_ruins(s.kpi_id)
+                for s in rodada.sinais
+            }
+            try:
+                leitura = Renato(motor.cfg).leitura(
+                    rodada.sinais, abertas, historico
+                ).texto
+            except (SemCredencial, RuntimeError) as exc:
+                print(f"Sem a leitura do Renato: {exc}", file=sys.stderr)
+
+        rel = montar(motor.cfg, rodada.sinais, abertas, leitura)
+        quem = motor.cfg.acompanhamento
+
+        if not args.enviar:
+            print(f"Assunto: {rel.assunto}\n")
+            print(rel.corpo_md)
+            print(f"\n---\nIria para: {', '.join(p.email for p in quem) or '(ninguém)'}")
+            return 0
+
+        if not quem:
+            print("Ninguém em `acompanhamento` no pessoas.yaml.", file=sys.stderr)
+            return 1
+
+        return _enviar_relatorio(rel, quem)
+    finally:
+        repo.fechar()
+
+
+def _enviar_relatorio(rel, quem) -> int:
+    """Manda o relatório pelo GHL, para quem tem contato declarado."""
+    from .notificadores import Mensagem
+
+    contatos = [p.ghl_contato for p in quem if p.ghl_contato]
+    sem = [p for p in quem if not p.ghl_contato]
+
+    for p in sem:
+        print(
+            f"⚠️  {p.nome} <{p.email}> não recebeu: sem `ghl_contato` "
+            "declarado no pessoas.yaml.",
+            file=sys.stderr,
+        )
+
+    if not contatos:
+        print("Ninguém da lista tem contato declarado.", file=sys.stderr)
+        return 1
+
+    ok = GoHighLevel().enviar(Mensagem(
+        assunto=rel.assunto,
+        corpo_md=rel.corpo_md,
+        destinatarios=[p.email for p in quem if p.ghl_contato],
+        contatos_ghl=contatos,
+    ))
+    enviados = len(contatos)
+    print(f"Relatório enviado para {enviados} de {len(quem)} da lista.")
+    return 0 if ok and not sem else 1
+
+
 def cmd_ghl_contatos(args) -> int:  # noqa: ARG001
     """Resolve o contato do GHL de cada dono, e mostra quem colide com cliente.
 
@@ -464,6 +541,16 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("validar", help="confere matriz e SQL sem tocar no ERP").set_defaults(
         func=cmd_validar
     )
+
+    sp = comum(sub.add_parser(
+        "relatorio", help="o quadro do dia para quem acompanha"
+    ))
+    sp.add_argument("--enviar", action="store_true",
+                    help="manda para a lista de acompanhamento (sem isto, "
+                         "só imprime)")
+    sp.add_argument("--com-renato", action="store_true",
+                    help="inclui a leitura cruzada no relatório")
+    sp.set_defaults(func=cmd_relatorio)
 
     sub.add_parser(
         "ghl-contatos", help="resolve contatos do GHL e aponta colisões"

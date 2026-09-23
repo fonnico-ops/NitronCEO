@@ -241,6 +241,39 @@ aprovar. O e-mail precisa de **`Mail.Send` e mais nada**. Começar por
 `--canais email` tira o sistema do papel com uma permissão; o Teams entra
 depois, sem mudar uma linha de configuração da matriz.
 
+### Relatório diário de acompanhamento
+
+Separado da cobrança, e de propósito: quem acompanha vê o quadro inteiro e
+**não é cobrado por nada**.
+
+```bash
+nitronceo relatorio                 # imprime o que sairia
+nitronceo relatorio --enviar        # manda para a lista
+nitronceo relatorio --enviar --com-renato
+```
+
+A lista vive em `pessoas.yaml`, em `acompanhamento:` — hoje Renato
+Fonseca, Ricardo Fonseca e Cristiane Alves. Uma pessoa pode estar nas duas
+pontas: a Cristiane acompanha o quadro todo **e** é dona das cobranças de
+Compras. São coisas separadas e ela recebe as duas.
+
+Para rodar todo dia às 7h:
+
+```cron
+0 7 * * 1-5  cd /opt/nitronceo && nitronceo relatorio --enviar --com-renato
+```
+
+Três regras que o relatório segue:
+
+- **O que venceu vem primeiro.** Quem acompanha quer saber de quem está a
+  bola e há quanto tempo, antes de qualquer outra coisa.
+- **Dia bom cabe em quatro linhas.** Relatório longo sobre dia normal
+  ensina a não ler o relatório, e no dia em que importar ninguém abre.
+- **Indicador que não mediu não é indicador verde.** Se a apuração
+  quebrar, o assunto diz isso; se quebrar em massa, o relatório avisa que
+  o quadro está incompleto antes de mostrar o quadro. O alarme que não
+  toca porque a bateria acabou é pior que alarme nenhum.
+
 ### O Renato
 
 ```bash
@@ -447,13 +480,14 @@ src/nitronceo/
   motor.py              orquestração + pulso do CEO
   analista.py           Renato: dossiê, leitura cruzada, redação da cobrança
   respostas.py          lê a caixa e amarra a resposta de volta na ação
+  relatorio.py          o quadro do dia para quem acompanha, sem cobrar
   dashboard.py          painel do pipeline: drill-down + respostas
   notificadores/        console (dry-run), Teams/Outlook (Graph) e GHL
-tests/                  64 testes; 23 fixtures com dados reais de produção
+tests/                  72 testes; 23 fixtures com dados reais de produção
 docs/                   arquitetura, governança, achados de dados,
                         pedido de permissões para a TI
 ```
 
 ```bash
-python -m pytest tests/ -q     # 64 passed
+python -m pytest tests/ -q     # 72 passed
 ```
