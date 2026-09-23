@@ -104,6 +104,45 @@ nitronceo responder a1b2c3d4e5f6 "Protesto entra quinta; top 3 já em acordo."
 nitronceo importar respostas.json    # respostas vindas do painel publicado
 ```
 
+### Cobrar pelo sender do GHL
+
+A conta GHL da Nitron **já envia** com o domínio `nitron.com.br`
+verificado, e já tem fluxo outbound para caixas internas (`expedicao2@`,
+`claudia.ribeiro@`, `financeiro@hyakgroup.com.br`). Não precisa de
+consentimento no Entra, nem de sincronismo de Outlook.
+
+```bash
+export GHL_TOKEN=... GHL_LOCATION_ID=rZ8y7lzqV7fzxsartaX2
+export GHL_REMETENTE=renato.fonseca@nitron.com.br
+nitronceo ghl-contatos          # resolve os contatos e aponta as colisões
+nitronceo rodar --canais ghl
+```
+
+**O `contactId` é declarado à mão, nunca deduzido.** O GHL só envia para
+um contato, e a base da location Nitron mistura funcionário com cliente.
+Em 23/09/2026, `cristiane.alves@nitron.com.br` resolvia para um único
+contato: *"Cristiane ATLETICO CLUBE"*, o cliente COOPERCOTIA cod 100526,
+com as tags da Nina e seguido pela Nina Financeiro. Cobrar Compras por
+aquele id levaria assunto interno para a conversa de um cliente.
+
+Por isso `ghl_contato` vive em `pessoas.yaml`, pessoa por pessoa, e
+`nitronceo ghl-contatos` só produz o laudo para alguém revisar:
+
+```
+✅ Prontos — cole o `ghl_contato` em config/pessoas.yaml:
+  # logistica · Expedição <expedicao2@nitron.com.br>
+  ghl_contato: AEfhFMAW6yLwumd6TvWE
+
+🔴 NÃO declare estes — o e-mail está num contato de CLIENTE:
+  compras · Cristiane Alves <cristiane.alves@nitron.com.br>
+      fhnAHYNbq8Inlzb56DQL  Cristiane ATLETICO CLUBE  [sankhya-cliente, ...]
+```
+
+Duas travas: o id tem que estar declarado, **e** o contato é reconferido a
+cada envio — um contato interno pode ganhar a tag `sankhya-cliente` numa
+sincronização depois de declarado. Quem não tem id não é cobrado por ali;
+segue pelo e-mail, que é o certo.
+
 ### Cobrar do seu e-mail, e ler a resposta
 
 `MS_REMETENTE` decide de qual caixa a cobrança sai. Apontando para a sua,
@@ -372,11 +411,11 @@ src/nitronceo/
   respostas.py          lê a caixa e amarra a resposta de volta na ação
   dashboard.py          painel do pipeline: drill-down + respostas
   notificadores/        console (dry-run), Teams/Outlook (Graph) e GHL
-tests/                  52 testes; 23 fixtures com dados reais de produção
+tests/                  55 testes; 23 fixtures com dados reais de produção
 docs/                   arquitetura, governança, achados de dados,
                         pedido de permissões para a TI
 ```
 
 ```bash
-python -m pytest tests/ -q     # 52 passed
+python -m pytest tests/ -q     # 55 passed
 ```

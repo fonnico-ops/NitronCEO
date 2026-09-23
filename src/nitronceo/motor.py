@@ -177,6 +177,7 @@ class Motor:
             corpo_md=self._corpo(acao, sinal, kpi, reincidencia),
             destinatarios=papel.emails,
             upns=papel.upns,
+            contatos_ghl=papel.contatos_ghl,
             urgente=sinal.nivel is Nivel.CRITICO,
             canal_equipe=self.cfg.canal_teams(kpi.get("canal_teams")),
         )
@@ -207,6 +208,7 @@ class Motor:
             corpo_md="\n".join(corpo),
             destinatarios=papel.emails,
             upns=papel.upns,
+            contatos_ghl=papel.contatos_ghl,
             urgente=cobranca.urgente,
         )
         canais = ["teams", "email"] if cobranca.escalada else ["teams"]

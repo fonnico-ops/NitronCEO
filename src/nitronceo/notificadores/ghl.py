@@ -1,29 +1,43 @@
-"""Envio por Go High Level (API v2).
+"""Envio por Go High Level (API v2) — o sender do próprio GHL.
 
-Terceiro canal, ao lado do Teams e do Outlook. O GHL manda e-mail a partir
-de um *contato* da location — não de um endereço avulso. Isso tem uma
-consequência que precisa estar escrita aqui e não descoberta em produção:
+A conta da Nitron já envia por aqui: o domínio `nitron.com.br` está
+verificado, e há fluxo outbound ativo para caixas internas —
+`expedicao2@`, `claudia.ribeiro@`, `financeiro@hyakgroup.com.br`. Não é
+preciso consentimento no Entra, nem sincronismo de Outlook, nem subdomínio
+novo. O caminho está aberto.
 
-    A location da Nitron no GHL contém CLIENTES, não funcionários.
+O que NÃO está resolvido é a quem cada cobrança vai parar.
 
-Uma busca por `cristiane.alves@nitron.com.br` na conta atual resolve para
-"Cristiane ATLETICO CLUBE" — um contato de cliente, com tags de campanha,
-1.041 dias sem comprar. Mandar a cobrança de Compras para esse contato
-enviaria o assunto interno da Nitron para a caixa errada e ainda sujaria a
-base de marketing.
+O GHL só envia para um `contactId`. E a base da location Nitron mistura
+funcionários com clientes, o que cria uma armadilha concreta, verificada
+em 23/09/2026:
 
-Por isso este notificador **falha alto** quando não encontra um contato
-inequívoco para o e-mail do destinatário, em vez de enviar para o primeiro
-resultado parecido. Enquanto não existir uma sub-conta (ou um conjunto de
-contatos marcados com a tag interna) com os donos de cobrança cadastrados,
-o GHL não é um canal utilizável para cobrança interna — e dizer isso é
-mais útil que um `200 OK` que foi para a pessoa errada.
+    expedicao2@nitron.com.br      -> contato limpo, sem tags        ✅
+    cristiane.alves@nitron.com.br -> "Cristiane ATLETICO CLUBE",
+                                     cliente COOPERCOTIA cod 100526,
+                                     tags sankhya-cliente / nina-*,
+                                     seguido pela Nina Financeiro    ❌
+
+O e-mail corporativo da compradora está cadastrado no contato de um
+cliente. Mandar a cobrança de Compras para esse id levaria assunto interno
+para a conversa do cliente, e ainda poderia disparar automação da Nina.
+
+Por isso este módulo NÃO resolve contato por busca de e-mail. Ele exige
+que o `contactId` esteja declarado em `pessoas.yaml`, pessoa por pessoa, e
+recusa quem não tem. Duas travas, nesta ordem:
+
+  1. o id tem que estar declarado — busca automática está proibida;
+  2. o contato não pode carregar tag de cliente.
+
+`nitronceo ghl-contatos` resolve os ids e mostra quais colidem com
+cliente, para a declaração ser uma revisão humana e não um palpite.
 
 Variáveis de ambiente:
-    GHL_TOKEN         Private Integration token (Bearer)
-    GHL_LOCATION_ID   location onde os contatos internos estão
-    GHL_REMETENTE     e-mail que assina (opcional; usa o padrão da location)
-    GHL_TAG_INTERNA   tag que marca contato de funcionário (padrão: nitron-interno)
+    GHL_TOKEN          Private Integration token (Bearer)
+    GHL_LOCATION_ID    location onde os contatos estão
+    GHL_REMETENTE      e-mail que assina (precisa de domínio verificado)
+    GHL_TAGS_CLIENTE   tags que marcam contato de cliente
+                       (padrão: sankhya-cliente,nina-conversa,nina-lead-rep)
 """
 
 from __future__ import annotations
@@ -37,9 +51,11 @@ from .graph import _html
 BASE = "https://services.leadconnectorhq.com"
 VERSAO = "2021-07-28"
 
+TAGS_CLIENTE_PADRAO = "sankhya-cliente,nina-conversa,nina-lead-rep"
 
-class ContatoAmbiguo(LookupError):
-    """Achei contato, mas não posso jurar que é a pessoa certa."""
+
+class ContatoInvalido(LookupError):
+    """Não posso jurar que esse contato é a pessoa que quero cobrar."""
 
 
 class GoHighLevel:
@@ -50,15 +66,20 @@ class GoHighLevel:
         token: str | None = None,
         location: str | None = None,
         remetente: str | None = None,
-        tag_interna: str | None = None,
+        tags_cliente: list[str] | None = None,
         sessao: Any | None = None,
     ) -> None:
         self.token = token or os.environ["GHL_TOKEN"]
         self.location = location or os.environ["GHL_LOCATION_ID"]
         self.remetente = remetente or os.getenv("GHL_REMETENTE")
-        self.tag_interna = (
-            tag_interna or os.getenv("GHL_TAG_INTERNA", "nitron-interno")
-        ).lower()
+        self.tags_cliente = {
+            t.strip().lower()
+            for t in (
+                tags_cliente
+                or os.getenv("GHL_TAGS_CLIENTE", TAGS_CLIENTE_PADRAO).split(",")
+            )
+            if (t.strip() if isinstance(t, str) else t)
+        }
         self._sessao = sessao
 
     # --------------------------------------------------------------- http
@@ -79,68 +100,66 @@ class GoHighLevel:
 
     # ------------------------------------------------------------ contato
 
-    def contato(self, email: str) -> str:
-        """Id do contato interno para este e-mail, ou erro explicando por quê.
-
-        Duas travas, nesta ordem: o e-mail tem que bater exatamente, e o
-        contato tem que carregar a tag interna. A segunda existe porque a
-        primeira sozinha já falhou: um contato de cliente pode ter sido
-        cadastrado com o e-mail corporativo de um funcionário.
-        """
+    def buscar(self, email: str) -> list[dict[str, Any]]:
+        """Os contatos com este e-mail exato. Para diagnóstico, não para envio."""
         resp = self._http().get(
-            f"{BASE}/contacts/",
-            params={"locationId": self.location, "query": email, "limit": 20},
+            f"{BASE}/contacts/lookup",
+            params={"email": email, "limit": 20},
             headers=self._cabecalhos(),
             timeout=30,
         )
         resp.raise_for_status()
-        achados = resp.json().get("contacts", [])
+        return resp.json().get("contacts", [])
 
-        exatos = [
-            c for c in achados
-            if (c.get("email") or "").strip().lower() == email.strip().lower()
-        ]
-        if not exatos:
-            raise ContatoAmbiguo(
-                f"Nenhum contato no GHL com o e-mail {email}. "
-                f"{len(achados)} resultado(s) parecido(s) foram ignorados de "
-                "propósito: enviar para um 'parecido' é enviar para a pessoa "
-                "errada."
-            )
+    def e_de_cliente(self, contato: dict[str, Any]) -> bool:
+        tags = {str(t).lower() for t in (contato.get("tags") or [])}
+        return bool(tags & self.tags_cliente)
 
-        internos = [
-            c for c in exatos
-            if any(t.lower() == self.tag_interna for t in (c.get("tags") or []))
-        ]
-        if not internos:
-            nomes = ", ".join(c.get("contactName", "?") for c in exatos[:3])
-            raise ContatoAmbiguo(
-                f"O e-mail {email} existe no GHL ({nomes}), mas sem a tag "
-                f"'{self.tag_interna}'. Esses contatos são de CLIENTE. "
-                "Cadastre o funcionário e marque-o com a tag antes de usar "
-                "o GHL como canal de cobrança."
+    def conferir(self, contato_id: str) -> dict[str, Any]:
+        """Lê o contato declarado e recusa se for de cliente.
+
+        A checagem é feita no momento do envio, e não só na declaração,
+        porque a base muda: um contato interno hoje pode receber a tag
+        `sankhya-cliente` amanhã numa sincronização.
+        """
+        resp = self._http().get(
+            f"{BASE}/contacts/{contato_id}",
+            headers=self._cabecalhos(),
+            timeout=30,
+        )
+        if resp.status_code == 404:
+            raise ContatoInvalido(
+                f"O contato {contato_id} declarado em pessoas.yaml não existe "
+                "mais no GHL. Rode `nitronceo ghl-contatos` e atualize."
             )
-        if len(internos) > 1:
-            raise ContatoAmbiguo(
-                f"{len(internos)} contatos internos com o e-mail {email}. "
-                "Deduplique no GHL — não dá para escolher por conta própria."
+        resp.raise_for_status()
+        contato = resp.json().get("contact", resp.json())
+
+        if self.e_de_cliente(contato):
+            nome = contato.get("contactName") or contato.get("firstName") or "?"
+            tags = ", ".join(contato.get("tags") or [])
+            raise ContatoInvalido(
+                f"O contato {contato_id} ({nome}) carrega tag de CLIENTE "
+                f"[{tags}]. Cobrança interna não vai para a conversa de um "
+                "cliente — corrija o cadastro antes de declarar este id."
             )
-        return internos[0]["id"]
+        return contato
 
     # ------------------------------------------------------------- enviar
 
     def enviar(self, msg: Mensagem) -> bool:
-        if not msg.destinatarios:
+        if not msg.contatos_ghl:
+            # Silêncio declarado, não falha: quem não tem contato declarado
+            # é cobrado pelos outros canais. Melhor não sair do que sair
+            # para a caixa errada.
             return True
 
         ok = True
-        for email in msg.destinatarios:
+        for contato_id in msg.contatos_ghl:
             try:
-                contato_id = self.contato(email)
-            except ContatoAmbiguo as exc:
-                # Não silencia: o motor precisa saber que este canal não
-                # entregou, para não contar a cobrança como enviada.
-                print(f"[ghl] não enviei para {email}: {exc}")
+                self.conferir(contato_id)
+            except ContatoInvalido as exc:
+                print(f"[ghl] não enviei para {contato_id}: {exc}")
                 ok = False
                 continue
 
@@ -162,3 +181,32 @@ class GoHighLevel:
             resp.raise_for_status()
 
         return ok
+
+    # --------------------------------------------------------- diagnóstico
+
+    def diagnosticar(self, emails: list[str]) -> list[dict[str, Any]]:
+        """Para cada e-mail: que contato existe, e dá para cobrar por ele?"""
+        laudo = []
+        for email in emails:
+            achados = self.buscar(email)
+            limpos = [c for c in achados if not self.e_de_cliente(c)]
+            laudo.append({
+                "email": email,
+                "achados": len(achados),
+                "contato_id": limpos[0]["id"] if len(limpos) == 1 else None,
+                "nome": " ".join(filter(None, [
+                    (limpos[0].get("firstName") if limpos else None),
+                    (limpos[0].get("lastName") if limpos else None),
+                ])) if limpos else "",
+                "de_cliente": [
+                    {
+                        "id": c["id"],
+                        "nome": " ".join(filter(None, [
+                            c.get("firstName"), c.get("lastName")
+                        ])),
+                        "tags": c.get("tags") or [],
+                    }
+                    for c in achados if self.e_de_cliente(c)
+                ],
+            })
+        return laudo

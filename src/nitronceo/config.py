@@ -26,6 +26,10 @@ class Pessoa:
     nome: str
     email: str
     upn: str | None = None
+    # Id do contato no GHL. Sem padrão de propósito: não existe valor
+    # seguro a adivinhar, e a busca por e-mail já provou levar à pessoa
+    # errada. Sem ele, o canal GHL simplesmente não cobra esta pessoa.
+    ghl_contato: str | None = None
 
     @property
     def upn_teams(self) -> str:
@@ -53,6 +57,11 @@ class Papel:
     def upns(self) -> list[str]:
         """Como o Teams conhece essas pessoas. Igual ao e-mail, salvo exceção."""
         return [p.upn_teams for p in self.pessoas]
+
+    @property
+    def contatos_ghl(self) -> list[str]:
+        """Só quem tem contato declarado. Quem não tem não é cobrado por lá."""
+        return [p.ghl_contato for p in self.pessoas if p.ghl_contato]
 
     @property
     def quem(self) -> str:

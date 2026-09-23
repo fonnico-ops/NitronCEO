@@ -15,6 +15,10 @@ class Mensagem:
     # UPNs do Microsoft 365. Quase sempre iguais aos e-mails; declarados à
     # parte porque quando divergem o Graph devolve 404 e ninguém é avisado.
     upns: list[str] = field(default_factory=list)
+    # Ids de contato do GHL. Declarados um a um em pessoas.yaml: a base
+    # mistura funcionário com cliente, e resolver por busca de e-mail já
+    # levaria a cobrança de Compras para a conversa de um cliente.
+    contatos_ghl: list[str] = field(default_factory=list)
 
     @property
     def para_teams(self) -> list[str]:

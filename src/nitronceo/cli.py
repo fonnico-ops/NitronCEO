@@ -9,6 +9,7 @@
     nitronceo dashboard -o x.html   # gera o painel do pipeline
     nitronceo importar respostas.json   # traz as respostas do painel de volta
     nitronceo respostas             # lê a caixa e amarra as respostas às ações
+    nitronceo ghl-contatos          # resolve os contatos do GHL e aponta colisões
     nitronceo renato                # leitura cruzada da rodada, para o CEO
     nitronceo renato --dossie       # só o material, sem chamar o modelo
     nitronceo rodar --com-renato    # ele escreve o texto de cada cobrança
@@ -316,6 +317,63 @@ def cmd_respostas(args) -> int:
         repo.fechar()
 
 
+def cmd_ghl_contatos(args) -> int:  # noqa: ARG001
+    """Resolve o contato do GHL de cada dono, e mostra quem colide com cliente.
+
+    O GHL só envia para um `contactId`, e a base da Nitron mistura
+    funcionário com cliente. Este comando não declara nada sozinho: ele
+    produz o laudo para uma pessoa revisar e colar em `pessoas.yaml`.
+    Declarar por adivinhação foi o que quase mandou a cobrança de Compras
+    para a conversa do cliente Coopercotia.
+    """
+    cfg = carregar()
+    emails, de_quem = [], {}
+    for chave, papel in cfg.papeis.items():
+        for pessoa in papel.pessoas:
+            if pessoa.email not in de_quem:
+                emails.append(pessoa.email)
+                de_quem[pessoa.email] = (chave, pessoa.nome)
+
+    laudo = GoHighLevel().diagnosticar(emails)
+
+    prontos, colidem, ausentes = [], [], []
+    for linha in laudo:
+        chave, nome = de_quem[linha["email"]]
+        if linha["contato_id"]:
+            prontos.append((chave, nome, linha))
+        elif linha["de_cliente"]:
+            colidem.append((chave, nome, linha))
+        else:
+            ausentes.append((chave, nome, linha))
+
+    if prontos:
+        print("✅ Prontos — cole o `ghl_contato` em config/pessoas.yaml:\n")
+        for chave, nome, linha in prontos:
+            print(f"  # {chave} · {nome} <{linha['email']}>")
+            print(f"  ghl_contato: {linha['contato_id']}")
+        print()
+
+    if colidem:
+        print("🔴 NÃO declare estes — o e-mail está num contato de CLIENTE:\n")
+        for chave, nome, linha in colidem:
+            print(f"  {chave} · {nome} <{linha['email']}>")
+            for c in linha["de_cliente"]:
+                print(f"      {c['id']}  {c['nome']}  [{', '.join(c['tags'])}]")
+            print("      -> corrija o cadastro do cliente ou crie o contato "
+                  "do funcionário antes de usar o GHL para esta pessoa.")
+        print()
+
+    if ausentes:
+        print("⚪ Sem contato no GHL — seguem sendo cobrados por e-mail:\n")
+        for chave, nome, linha in ausentes:
+            print(f"  {chave} · {nome} <{linha['email']}>")
+        print()
+
+    print(f"{len(prontos)} prontos · {len(colidem)} colidindo com cliente · "
+          f"{len(ausentes)} sem contato")
+    return 1 if colidem else 0
+
+
 def cmd_validar(args) -> int:  # noqa: ARG001
     """Confere a matriz e monta todo o SQL sem executar nada."""
     cfg = carregar()
@@ -399,6 +457,10 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("validar", help="confere matriz e SQL sem tocar no ERP").set_defaults(
         func=cmd_validar
     )
+
+    sub.add_parser(
+        "ghl-contatos", help="resolve contatos do GHL e aponta colisões"
+    ).set_defaults(func=cmd_ghl_contatos)
 
     sp = sub.add_parser("respostas", help="lê a caixa e amarra respostas às ações")
     sp.add_argument("--caixa", help="caixa a ler (padrão: MS_REMETENTE)")
