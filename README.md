@@ -373,7 +373,8 @@ src/nitronceo/
   dashboard.py          painel do pipeline: drill-down + respostas
   notificadores/        console (dry-run), Teams/Outlook (Graph) e GHL
 tests/                  52 testes; 23 fixtures com dados reais de produção
-docs/                   arquitetura, governança, achados de dados
+docs/                   arquitetura, governança, achados de dados,
+                        pedido de permissões para a TI
 ```
 
 ```bash
