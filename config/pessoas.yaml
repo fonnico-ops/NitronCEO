@@ -153,11 +153,13 @@ papeis:
 # coisas separadas, e ela recebe as duas.
 acompanhamento:
   - nome: Renato Fonseca
-    email: renato.fonseca@nitron.com.br
-    # Sem ghl_contato: o contato bnKA8BWCRaTeiBC2rjRs é um lead de
-    # campanha (tag `lead-puro`, Nina Financeiro, anúncio de Instagram).
-    # Relatório de gestão não entra numa conversa de anúncio. Crie um
-    # contato limpo para ele e declare o id aqui.
+    # O endereço da Hyak, e não o @nitron.com.br, porque no GHL o contato
+    # com o e-mail da Nitron (bnKA8BWCRaTeiBC2rjRs) é um lead de campanha:
+    # tag `lead-puro`, Nina Financeiro como responsável, campos de um
+    # anúncio de Instagram. Relatório de gestão não entra numa conversa de
+    # anúncio. Este contato é limpo e existe só para isto.
+    email: renato@hyak.com.br
+    ghl_contato: vzBClqQM1a1wDZj0kl9A
   - nome: Ricardo Fonseca
     email: ricardo.fonseca@nitron.com.br
     ghl_contato: yqVKiGxKHZVXoY5UwD5n

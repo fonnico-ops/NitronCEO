@@ -154,13 +154,21 @@ def test_lista_de_acompanhamento_nao_se_confunde_com_dono_de_cobranca():
     acompanham = {p.email for p in cfg.acompanhamento}
 
     assert acompanham == {
-        "renato.fonseca@nitron.com.br",
+        "renato@hyak.com.br",
         "ricardo.fonseca@nitron.com.br",
         "cristiane.alves@nitron.com.br",
     }
+    # todos com contato declarado: ninguém da lista fica sem receber
+    assert all(p.ghl_contato for p in cfg.acompanhamento)
     # a Cristiane está nas duas pontas: acompanha o quadro inteiro E é dona
     # das cobranças de Compras. São coisas separadas, e ela recebe as duas.
     assert "cristiane.alves@nitron.com.br" in cfg.papel("compras").emails
     # o Ricardo Fonseca só acompanha: não é dono de papel nenhum
     donos = {e for papel in cfg.papeis.values() for e in papel.emails}
     assert "ricardo.fonseca@nitron.com.br" not in donos
+
+    # O CEO acompanha pelo endereço da Hyak, mas é cobrado (escalada) no
+    # da Nitron. Endereços diferentes para papéis diferentes, de
+    # propósito: o contato @nitron.com.br dele no GHL é lead de campanha.
+    assert cfg.papel("ceo").emails == ["renato.fonseca@nitron.com.br"]
+    assert "renato@hyak.com.br" not in donos

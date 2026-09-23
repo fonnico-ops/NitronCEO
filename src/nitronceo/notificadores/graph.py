@@ -17,6 +17,7 @@ tudo no canal da área e deixar o e-mail como trilha individual.
 from __future__ import annotations
 
 import os
+import re
 from typing import Any
 
 from .base import Mensagem
@@ -174,8 +175,27 @@ class EmailOutlook:
         return True
 
 
+# Cada nível de título, do mais longo para o mais curto: `## ` casaria
+# dentro de `### ` se a ordem fosse outra.
+TITULOS = (("### ", "h3"), ("## ", "h2"), ("# ", "h1"))
+
+_NEGRITO = re.compile(r"\*\*(.+?)\*\*")
+_ITALICO = re.compile(r"(?<![\w*])_(.+?)_(?![\w*])")
+
+
+def _inline(texto: str) -> str:
+    """Negrito e itálico. O que sobrar de `*` ou `_` é texto literal.
+
+    O negrito carrega significado no corpo da cobrança — é o número e o
+    prazo que estão marcados. Apagar os asteriscos, como esta função fazia
+    antes, entregava a frase inteira no mesmo peso.
+    """
+    texto = _NEGRITO.sub(r"<strong>\1</strong>", texto)
+    return _ITALICO.sub(r"<em>\1</em>", texto)
+
+
 def _html(msg: Mensagem) -> str:
-    """Markdown mínimo -> HTML. O Graph não renderiza markdown."""
+    """Markdown mínimo -> HTML. Nem o Graph nem o GHL renderizam markdown."""
     partes: list[str] = []
     lista_aberta = False
 
@@ -191,18 +211,26 @@ def _html(msg: Mensagem) -> str:
             if not lista_aberta:
                 partes.append("<ul>")
                 lista_aberta = True
-            partes.append(f"<li>{linha[2:]}</li>")
-        elif not linha:
+            partes.append(f"<li>{_inline(linha[2:])}</li>")
+            continue
+
+        if not linha:
             partes.append("<br>")
-        elif linha.startswith("### "):
-            partes.append(f"<h3>{linha[4:]}</h3>")
-        elif linha.startswith("## "):
-            partes.append(f"<h2>{linha[3:]}</h2>")
+            continue
+
+        if set(linha) <= {"-", "_", "*"} and len(linha) >= 3:
+            partes.append("<hr>")
+            continue
+
+        for marca, tag in TITULOS:
+            if linha.startswith(marca):
+                partes.append(f"<{tag}>{_inline(linha[len(marca):])}</{tag}>")
+                break
         else:
-            partes.append(f"<p>{linha}</p>")
+            partes.append(f"<p>{_inline(linha)}</p>")
 
     if lista_aberta:
         partes.append("</ul>")
 
-    corpo = "\n".join(partes).replace("**", "")
+    corpo = "\n".join(partes)
     return f"<div style='font-family:Segoe UI,Arial,sans-serif'>{corpo}</div>"

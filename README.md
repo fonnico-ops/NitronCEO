@@ -483,11 +483,11 @@ src/nitronceo/
   relatorio.py          o quadro do dia para quem acompanha, sem cobrar
   dashboard.py          painel do pipeline: drill-down + respostas
   notificadores/        console (dry-run), Teams/Outlook (Graph) e GHL
-tests/                  72 testes; 23 fixtures com dados reais de produção
+tests/                  80 testes; 23 fixtures com dados reais de produção
 docs/                   arquitetura, governança, achados de dados,
                         pedido de permissões para a TI
 ```
 
 ```bash
-python -m pytest tests/ -q     # 72 passed
+python -m pytest tests/ -q     # 80 passed
 ```
