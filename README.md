@@ -337,10 +337,10 @@ src/nitronceo/
   analista.py           Renato: dossiê, leitura cruzada, redação da cobrança
   dashboard.py          painel do pipeline: drill-down + respostas
   notificadores/        console (dry-run), Teams/Outlook (Graph) e GHL
-tests/                  40 testes; 23 fixtures com dados reais de produção
+tests/                  42 testes; 23 fixtures com dados reais de produção
 docs/                   arquitetura, governança, achados de dados
 ```
 
 ```bash
-python -m pytest tests/ -q     # 40 passed
+python -m pytest tests/ -q     # 42 passed
 ```

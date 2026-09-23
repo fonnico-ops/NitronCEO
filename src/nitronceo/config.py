@@ -14,8 +14,22 @@ RAIZ = Path(__file__).resolve().parents[2]
 
 @dataclass
 class Pessoa:
+    """Uma pessoa cobrável.
+
+    `email` é para onde vai o e-mail. `upn` é como o Teams a conhece, e só
+    precisa ser declarado quando os dois diferem — o que acontece de
+    verdade: a Ana Julia recebe e-mail em ecommerce2@nitron.com.br e aparece
+    no Teams como ecommerce@nitron.com.br. Passar o e-mail onde o Graph
+    espera o UPN devolve 404, e a cobrança não chega.
+    """
+
     nome: str
     email: str
+    upn: str | None = None
+
+    @property
+    def upn_teams(self) -> str:
+        return self.upn or self.email
 
 
 @dataclass
@@ -34,6 +48,11 @@ class Papel:
     @property
     def emails(self) -> list[str]:
         return [p.email for p in self.pessoas]
+
+    @property
+    def upns(self) -> list[str]:
+        """Como o Teams conhece essas pessoas. Igual ao e-mail, salvo exceção."""
+        return [p.upn_teams for p in self.pessoas]
 
     @property
     def quem(self) -> str:

@@ -133,3 +133,54 @@ def test_com_teams_e_email_cada_canal_recebe_o_seu(tmp_path):
     assert saida.getvalue().count("   para:") > len(rodada.acoes_novas)
     assert not rodada.desvios, "com os dois canais no ar não há desvio"
     repo.fechar()
+
+
+def test_upn_do_teams_pode_diferir_do_email(tmp_path):
+    """A Ana Julia recebe e-mail num endereço e existe no Teams em outro.
+
+    Quando isso acontece e ninguém declara o `upn`, o Graph devolve 404 na
+    mensagem direta e a cobrança não chega — sem erro visível.
+    """
+    from nitronceo.config import Papel, Pessoa
+    from nitronceo.notificadores import Mensagem
+
+    papel = Papel(
+        chave="ecommerce", nome="E-commerce",
+        pessoas=[Pessoa("Ana Julia", "ecommerce2@nitron.com.br",
+                        upn="ecommerce@nitron.com.br")],
+    )
+    assert papel.emails == ["ecommerce2@nitron.com.br"]
+    assert papel.upns == ["ecommerce@nitron.com.br"]
+
+    msg = Mensagem("x", "y", destinatarios=papel.emails, upns=papel.upns)
+    assert msg.para_teams == ["ecommerce@nitron.com.br"]
+
+    # Sem `upn` declarado, o e-mail serve para os dois — que é o caso comum.
+    simples = Papel(chave="pcp", nome="PCP",
+                    pessoas=[Pessoa("Anderson", "anderson.lourenco@nitron.com.br")])
+    assert simples.upns == simples.emails
+
+
+def test_envio_que_falha_nao_derruba_as_outras_cobrancas(tmp_path):
+    """Um UPN errado é 404 no Graph. Sem tratamento, a primeira pessoa mal
+    cadastrada impediria as outras 36 cobranças de sair."""
+    class CanalQuebrado:
+        nome = "teams"
+
+        def enviar(self, msg):
+            raise RuntimeError("404 Not Found: users('ecommerce2@nitron.com.br')")
+
+    cfg = carregar()
+    repo = Repositorio(tmp_path / "t.db")
+    motor = Motor(cfg, FonteArquivo(FIXTURES), repo,
+                  {"teams": CanalQuebrado()}, raiz=RAIZ)
+    rodada = motor.rodar(cobrar=False)
+
+    assert len(rodada.sinais) == 37, "a medição não pode parar"
+    assert rodada.acoes_novas, "as ações continuam sendo abertas"
+    assert rodada.falhas_de_envio, "a falha tem que ficar registrada"
+    assert "404" in rodada.falhas_de_envio[0][2]
+
+    texto = pulso(rodada, motor.cfg)
+    assert "NÃO chegaram no destinatário" in texto
+    repo.fechar()

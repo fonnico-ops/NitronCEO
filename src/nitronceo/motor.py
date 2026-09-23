@@ -59,6 +59,7 @@ class Rodada:
     falhas: list[tuple[str, str]] = field(default_factory=list)
     falhas_de_redacao: list[tuple[str, str]] = field(default_factory=list)
     desvios: list[tuple[str, str]] = field(default_factory=list)
+    falhas_de_envio: list[tuple[str, str, str]] = field(default_factory=list)
 
 
 class Motor:
@@ -87,6 +88,7 @@ class Motor:
         # que o amarelo inteiro emudece.
         self.fallback = fallback
         self.desvios: list[tuple[str, str]] = []
+        self.falhas_de_envio: list[tuple[str, str, str]] = []
 
     # ------------------------------------------------------------------ medir
 
@@ -103,6 +105,7 @@ class Motor:
         rodada = Rodada()
         self.falhas_de_redacao = []
         self.desvios = []
+        self.falhas_de_envio = []
 
         for kpi in self.cfg.matriz["kpis"]:
             if apenas and kpi["id"] not in apenas:
@@ -127,6 +130,7 @@ class Motor:
 
         rodada.falhas_de_redacao = list(self.falhas_de_redacao)
         rodada.desvios = list(self.desvios)
+        rodada.falhas_de_envio = list(self.falhas_de_envio)
         return rodada
 
     # ----------------------------------------------------------------- cobrar
@@ -161,6 +165,7 @@ class Motor:
             assunto=f"{ICONE[sinal.nivel]} {acao.titulo}",
             corpo_md=self._corpo(acao, sinal, kpi, reincidencia),
             destinatarios=papel.emails,
+            upns=papel.upns,
             urgente=sinal.nivel is Nivel.CRITICO,
             canal_equipe=self.cfg.canal_teams(kpi.get("canal_teams")),
         )
@@ -190,6 +195,7 @@ class Motor:
             assunto=f"⏰ {prefixo}: {acao.titulo}",
             corpo_md="\n".join(corpo),
             destinatarios=papel.emails,
+            upns=papel.upns,
             urgente=cobranca.urgente,
         )
         canais = ["teams", "email"] if cobranca.escalada else ["teams"]
@@ -298,7 +304,13 @@ class Motor:
                     destinatarios=emails,
                     urgente=msg.urgente,
                 )
-            notificador.enviar(alvo)
+            try:
+                notificador.enviar(alvo)
+            except Exception as exc:
+                # Um UPN errado devolve 404 no Graph. Sem este try, a
+                # primeira pessoa mal cadastrada derruba a rodada inteira e
+                # as outras 36 cobranças não saem.
+                self.falhas_de_envio.append((canal, msg.assunto, str(exc)))
 
 
 def pulso(rodada: Rodada, cfg: Config) -> str:
@@ -338,6 +350,15 @@ def pulso(rodada: Rodada, cfg: Config) -> str:
     if rodada.falhas:
         linhas += ["", "### KPIs que não mediram"]
         linhas += [f"- {kid}: {erro}" for kid, erro in rodada.falhas]
+
+    if rodada.falhas_de_envio:
+        # O mais grave da lista: a ação existe, o prazo corre, e a pessoa
+        # não foi avisada. Vai no topo do bloco de problemas.
+        linhas += ["", "### ⚠️ Cobranças que NÃO chegaram no destinatário"]
+        linhas += [
+            f"- [{canal}] {assunto}: {erro}"
+            for canal, assunto, erro in rodada.falhas_de_envio
+        ]
 
     if rodada.desvios:
         de_para = sorted(set(rodada.desvios))

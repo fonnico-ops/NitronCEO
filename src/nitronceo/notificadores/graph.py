@@ -91,7 +91,7 @@ class Teams:
                 msg.canal_equipe["team"], msg.canal_equipe["canal"], corpo, msg.urgente
             )
 
-        for upn in msg.destinatarios:
+        for upn in msg.para_teams:
             ok &= self._direto(upn, corpo, msg.urgente)
 
         return ok

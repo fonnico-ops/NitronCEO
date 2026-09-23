@@ -11,7 +11,16 @@
 #               pessoa e o Renato, aponte aqui — o degrau a mais é o que evita
 #               que assunto operacional chegue no CEO.
 #
-# O `email` de cada pessoa é o mesmo usado como UPN do Microsoft 365 (Teams).
+# `email` -> para onde vai o e-mail.
+# `upn`   -> como o Microsoft 365 conhece a pessoa, para a mensagem direta do
+#            Teams. Só precisa ser declarado quando difere do e-mail.
+#
+# Quase sempre os dois são iguais, e por isso essa diferença é traiçoeira:
+# quando o UPN está errado, o Graph devolve 404 e a cobrança simplesmente
+# não chega — sem erro visível para quem cobra. Caso real conferido no
+# diretório em 23/09/2026: a Ana Julia recebe e-mail em
+# ecommerce2@nitron.com.br e aparece nos chats do Teams como
+# ecommerce@nitron.com.br. O e-mail está certo; o UPN é que é outro.
 
 papeis:
   ceo:
@@ -85,6 +94,12 @@ papeis:
     pessoas:
       - nome: Ana Julia
         email: ecommerce2@nitron.com.br
+        # Confirmado pelo CEO: o e-mail dela é o ecommerce2. Mas nos chats
+        # do Teams ela aparece como ecommerce@nitron.com.br — provavelmente
+        # a caixa que virou o UPN dela no Entra. Confirme no admin center
+        # antes de ligar o Teams; se o UPN for mesmo o ecommerce@, basta
+        # descomentar a linha abaixo e a mensagem direta volta a chegar.
+        # upn: ecommerce@nitron.com.br
 
   projetos:
     nome: Projetos / Moldes
