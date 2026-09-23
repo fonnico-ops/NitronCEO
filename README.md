@@ -121,14 +121,16 @@ A cobrança sai de **`renato.fonseca@nitron.com.br`** — é o padrão do
 código, sobrescrevível por `GHL_REMETENTE`. O domínio já está verificado
 no GHL, então o envio é do sender do GHL e não passa pelo Outlook.
 
-Estado dos contatos em 23/09/2026 — 6 de 10 donos prontos:
+Estado dos contatos em 23/09/2026 — 8 dos 10 papéis completos:
 
 | Área | Contato | |
 |---|---|---|
-| Financeiro, Comercial, PCP, Logística (2), E-commerce | declarados | ✅ |
+| Financeiro, Comercial, PCP, Logística (2), Produção/Qualidade (2), E-commerce, Projetos | declarados | ✅ |
 | CEO | `bnKA8BWCRaTeiBC2rjRs` é um **lead de campanha** (`lead-puro`, Nina Financeiro, anúncio de Instagram) | 🔴 |
 | Compras | o e-mail está no contato do cliente **COOPERCOTIA** | 🔴 |
-| Produção/Qualidade, Projetos | sem contato na base | ⚪ |
+
+Os dois de fora continuam sendo cobrados por e-mail — é o canal que cala,
+não a cobrança.
 
 **O `contactId` é declarado à mão, nunca deduzido.** O GHL só envia para
 um contato, e a base da location Nitron mistura funcionário com cliente.

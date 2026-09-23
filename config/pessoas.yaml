@@ -105,8 +105,10 @@ papeis:
     pessoas:
       - nome: Alex Souza
         email: alex.souza@nitron.com.br
+        ghl_contato: X6MNzepk1VEnCNhVi8I0
       - nome: Charles Silva
         email: charles.silva@nitron.com.br
+        ghl_contato: Yazq9Cnb03hnCXv08mrp
 
   qualidade:
     nome: Qualidade
@@ -117,8 +119,10 @@ papeis:
       # diferentes — ainda que as pessoas coincidam hoje.
       - nome: Alex Souza
         email: alex.souza@nitron.com.br
+        ghl_contato: X6MNzepk1VEnCNhVi8I0
       - nome: Charles Silva
         email: charles.silva@nitron.com.br
+        ghl_contato: Yazq9Cnb03hnCXv08mrp
 
   ecommerce:
     nome: E-commerce
@@ -138,8 +142,9 @@ papeis:
     nome: Projetos / Moldes
     escalonar_para: ceo
     pessoas:
-      - nome: Projetos
+      - nome: Rafael Francisco
         email: projetos3@nitron.com.br
+        ghl_contato: dxyUq1pvf1BbaMWnp2hW
 
 canais_teams:
   # Canal de time, para o sinal que é do grupo e não de uma pessoa.

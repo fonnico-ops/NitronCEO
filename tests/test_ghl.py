@@ -224,3 +224,16 @@ def test_config_real_nao_declara_contato_poluido():
         "AEfhFMAW6yLwumd6TvWE", "FnMLfa8eSdSz8GmV9spD"
     ]
     assert cfg.papel("ecommerce").contatos_ghl == ["7OD3lOe5yue8AJUYAJvo"]
+    # produção e qualidade são a mesma dupla em papéis separados: os dois
+    # precisam dos dois ids, senão metade da cobrança some num deles.
+    producao = ["X6MNzepk1VEnCNhVi8I0", "Yazq9Cnb03hnCXv08mrp"]
+    assert cfg.papel("gerente_producao").contatos_ghl == producao
+    assert cfg.papel("qualidade").contatos_ghl == producao
+
+    # 8 dos 10 papéis com todo mundo declarado; só CEO e Compras de fora,
+    # e por colisão conhecida, não por esquecimento.
+    incompletos = {
+        c for c, papel in cfg.papeis.items()
+        if len(papel.contatos_ghl) != len(papel.pessoas)
+    }
+    assert incompletos == {"ceo", "compras"}
