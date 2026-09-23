@@ -51,7 +51,12 @@ from .graph import _html
 BASE = "https://services.leadconnectorhq.com"
 VERSAO = "2021-07-28"
 
-TAGS_CLIENTE_PADRAO = "sankhya-cliente,nina-conversa,nina-lead-rep"
+# Tags que provam que o contato NÃO é um funcionário sendo cobrado.
+# `lead-puro` entrou porque o contato do próprio CEO a carrega, junto com
+# campos de um anúncio de Instagram e a Nina Financeiro como responsável:
+# o e-mail está certo, mas a conversa é de campanha, e cobrança interna não
+# entra ali.
+TAGS_CLIENTE_PADRAO = "sankhya-cliente,nina-conversa,nina-lead-rep,lead-puro"
 
 
 class ContatoInvalido(LookupError):
@@ -71,7 +76,11 @@ class GoHighLevel:
     ) -> None:
         self.token = token or os.environ["GHL_TOKEN"]
         self.location = location or os.environ["GHL_LOCATION_ID"]
-        self.remetente = remetente or os.getenv("GHL_REMETENTE")
+        # Quem assina. O padrão é o CEO: a cobrança tem o peso de vir
+        # dele, e o domínio nitron.com.br já está verificado no GHL.
+        self.remetente = remetente or os.getenv(
+            "GHL_REMETENTE", "renato.fonseca@nitron.com.br"
+        )
         self.tags_cliente = {
             t.strip().lower()
             for t in (

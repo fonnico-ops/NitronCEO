@@ -39,6 +39,12 @@ papeis:
     pessoas:
       - nome: Renato Fonseca
         email: renato.fonseca@nitron.com.br
+        # SEM ghl_contato de propósito. O contato bnKA8BWCRaTeiBC2rjRs tem
+        # o e-mail certo, mas é um LEAD de campanha: tag `lead-puro`,
+        # atribuído à Nina Financeiro e com campos de um anúncio de
+        # Instagram. Escalada de cobrança do CEO não vai para dentro de uma
+        # conversa de campanha. Para usar o GHL aqui, crie um contato
+        # separado (ou limpe esse) e declare o id novo.
 
   financeiro:
     nome: Financeiro
@@ -46,6 +52,8 @@ papeis:
     pessoas:
       - nome: Claudia Ribeiro
         email: claudia.ribeiro@nitron.com.br
+        # Contato limpo, sem tags.
+        ghl_contato: C7NmfoKV3I516LQ8r84Q
 
   compras:
     nome: Compras
@@ -66,6 +74,8 @@ papeis:
     pessoas:
       - nome: Ricardo Miyabara
         email: ricardo.miyabara@nitron.com.br
+        # Contato limpo, sem tags.
+        ghl_contato: 4pIyLYLwGWg6lauXxPY5
 
   pcp:
     nome: PCP
@@ -73,6 +83,8 @@ papeis:
     pessoas:
       - nome: Anderson Lourenço
         email: anderson.lourenco@nitron.com.br
+        # Criado em 23/09/2026 pelo CEO.
+        ghl_contato: 3k2MFyWq9RqHAr7vQ94r
 
   logistica:
     nome: Faturamento / Expedição / Logística
@@ -84,6 +96,8 @@ papeis:
         ghl_contato: AEfhFMAW6yLwumd6TvWE
       - nome: Forla Silva
         email: forla.silva@nitron.com.br
+        # Contato limpo, sem tags.
+        ghl_contato: FnMLfa8eSdSz8GmV9spD
 
   gerente_producao:
     nome: Produção
@@ -112,11 +126,12 @@ papeis:
     pessoas:
       - nome: Ana Julia
         email: ecommerce2@nitron.com.br
-        # Confirmado pelo CEO: o e-mail dela é o ecommerce2. Mas nos chats
-        # do Teams ela aparece como ecommerce@nitron.com.br — provavelmente
-        # a caixa que virou o UPN dela no Entra. Confirme no admin center
-        # antes de ligar o Teams; se o UPN for mesmo o ecommerce@, basta
-        # descomentar a linha abaixo e a mensagem direta volta a chegar.
+        # Criado em 23/09/2026 pelo CEO.
+        ghl_contato: 7OD3lOe5yue8AJUYAJvo
+        # O e-mail é o ecommerce2 (confirmado pelo CEO). No Teams ela
+        # aparece como ecommerce@nitron.com.br — confirme o UPN no admin
+        # center antes de ligar o Teams e descomente a linha abaixo se for
+        # o caso; o GHL não é afetado, lá vale o ghl_contato.
         # upn: ecommerce@nitron.com.br
 
   projetos:

@@ -113,10 +113,22 @@ consentimento no Entra, nem de sincronismo de Outlook.
 
 ```bash
 export GHL_TOKEN=... GHL_LOCATION_ID=rZ8y7lzqV7fzxsartaX2
-export GHL_REMETENTE=renato.fonseca@nitron.com.br
 nitronceo ghl-contatos          # resolve os contatos e aponta as colisões
 nitronceo rodar --canais ghl
 ```
+
+A cobrança sai de **`renato.fonseca@nitron.com.br`** — é o padrão do
+código, sobrescrevível por `GHL_REMETENTE`. O domínio já está verificado
+no GHL, então o envio é do sender do GHL e não passa pelo Outlook.
+
+Estado dos contatos em 23/09/2026 — 6 de 10 donos prontos:
+
+| Área | Contato | |
+|---|---|---|
+| Financeiro, Comercial, PCP, Logística (2), E-commerce | declarados | ✅ |
+| CEO | `bnKA8BWCRaTeiBC2rjRs` é um **lead de campanha** (`lead-puro`, Nina Financeiro, anúncio de Instagram) | 🔴 |
+| Compras | o e-mail está no contato do cliente **COOPERCOTIA** | 🔴 |
+| Produção/Qualidade, Projetos | sem contato na base | ⚪ |
 
 **O `contactId` é declarado à mão, nunca deduzido.** O GHL só envia para
 um contato, e a base da location Nitron mistura funcionário com cliente.
@@ -411,11 +423,11 @@ src/nitronceo/
   respostas.py          lê a caixa e amarra a resposta de volta na ação
   dashboard.py          painel do pipeline: drill-down + respostas
   notificadores/        console (dry-run), Teams/Outlook (Graph) e GHL
-tests/                  55 testes; 23 fixtures com dados reais de produção
+tests/                  58 testes; 23 fixtures com dados reais de produção
 docs/                   arquitetura, governança, achados de dados,
                         pedido de permissões para a TI
 ```
 
 ```bash
-python -m pytest tests/ -q     # 55 passed
+python -m pytest tests/ -q     # 58 passed
 ```

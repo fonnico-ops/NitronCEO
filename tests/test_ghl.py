@@ -180,3 +180,47 @@ def test_papel_so_entrega_contatos_declarados():
     # o Forla ainda não tem contato: não entra na lista do GHL, e continua
     # sendo cobrado por e-mail como todo mundo.
     assert papel.contatos_ghl == [EXPEDICAO["id"]]
+
+
+# --------------------------------------------------- o remetente e o CEO
+
+
+def test_remetente_padrao_e_o_ceo():
+    ghl, _ = _ghl()
+    assert ghl.remetente == "renato.fonseca@nitron.com.br"
+
+
+def test_lead_de_campanha_tambem_e_bloqueado():
+    """O contato do próprio CEO tem o e-mail certo e a conversa errada.
+
+    bnKA8BWCRaTeiBC2rjRs carrega `lead-puro`, está atribuído à Nina
+    Financeiro e traz campos de um anúncio de Instagram. Escalada de
+    cobrança não entra numa conversa de campanha.
+    """
+    lead = {
+        "id": "bnKA8BWCRaTeiBC2rjRs", "firstName": "Renato",
+        "email": "renato.fonseca@nitron.com.br", "tags": ["lead-puro"],
+    }
+    ghl, sessao = _ghl(por_id={lead["id"]: lead})
+
+    assert ghl.enviar(_msg(lead["id"])) is False
+    assert not sessao.enviados
+
+
+def test_config_real_nao_declara_contato_poluido():
+    """Trava de regressão sobre o pessoas.yaml de verdade.
+
+    O CEO e a Compras não podem ganhar `ghl_contato` sem que alguém tenha
+    resolvido a colisão — declarar qualquer um dos dois hoje mandaria
+    cobrança para a conversa de um lead ou de um cliente.
+    """
+    from nitronceo.config import carregar
+
+    cfg = carregar()
+    assert cfg.papel("ceo").contatos_ghl == []
+    assert cfg.papel("compras").contatos_ghl == []
+    # e os resolvidos estão declarados
+    assert cfg.papel("logistica").contatos_ghl == [
+        "AEfhFMAW6yLwumd6TvWE", "FnMLfa8eSdSz8GmV9spD"
+    ]
+    assert cfg.papel("ecommerce").contatos_ghl == ["7OD3lOe5yue8AJUYAJvo"]
