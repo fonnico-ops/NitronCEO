@@ -209,10 +209,12 @@ def test_texto_do_renato_entra_na_cobranca_com_o_rodape_do_sistema(tmp_path):
     texto = saida.getvalue()
 
     assert "Corpo escrito pelo Renato." in texto
-    # prazo, link e procedência são fato do sistema: não podem depender de
-    # o modelo ter lembrado deles.
-    assert "Responda no painel:" in texto
+    # prazo, link, token e procedência são fato do sistema: não podem
+    # depender de o modelo ter lembrado deles.
+    assert "Responda neste e-mail" in texto
     assert "Base do número:" in texto
+    # o token do assunto é o que amarra a resposta de volta na ação
+    assert "[NTR-" in texto
     repo.fechar()
 
 

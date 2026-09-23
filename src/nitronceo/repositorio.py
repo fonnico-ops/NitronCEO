@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import json
 import sqlite3
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 
 from .acoes import Acao, Estado
@@ -58,6 +58,21 @@ CREATE TABLE IF NOT EXISTS cobrancas (
     motivo      TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_cobrancas_acao ON cobrancas(acao_id);
+
+-- Toda resposta que chega por e-mail, inclusive as que não encerram nada.
+-- `msg_id` é o Internet Message-Id do e-mail, que é único e estável: é ele
+-- que impede a mesma resposta de ser processada duas vezes a cada leitura
+-- da caixa.
+CREATE TABLE IF NOT EXISTS respostas_email (
+    msg_id      TEXT PRIMARY KEY,
+    acao_id     TEXT NOT NULL REFERENCES acoes(id),
+    de          TEXT NOT NULL,
+    texto       TEXT NOT NULL,
+    encerra     INTEGER NOT NULL DEFAULT 0,
+    recebida_em TEXT NOT NULL,
+    lida_em     TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS ix_respostas_acao ON respostas_email(acao_id);
 """
 
 
@@ -180,6 +195,66 @@ class Repositorio:
         )
         self.con.commit()
         return True
+
+    # ------------------------------------------------- respostas por e-mail
+
+    def resposta_ja_lida(self, msg_id: str) -> bool:
+        """O mesmo e-mail aparece em toda leitura da caixa; processa uma vez."""
+        return self.con.execute(
+            "SELECT 1 FROM respostas_email WHERE msg_id = ?", (msg_id,)
+        ).fetchone() is not None
+
+    def gravar_resposta_email(
+        self,
+        msg_id: str,
+        acao_id: str,
+        de: str,
+        texto: str,
+        encerra: bool,
+        recebida_em: datetime,
+    ) -> None:
+        self.con.execute(
+            "INSERT OR IGNORE INTO respostas_email (msg_id, acao_id, de, texto,"
+            " encerra, recebida_em, lida_em) VALUES (?,?,?,?,?,?,?)",
+            (msg_id, acao_id, de, texto, int(encerra),
+             recebida_em.isoformat(), datetime.now().isoformat()),
+        )
+        self.con.commit()
+
+    def respondeu_nas_ultimas(self, acao_id: str, horas: float) -> bool:
+        """Houve resposta por e-mail dentro da janela de carência?
+
+        É o que sustenta a promessa feita no corpo da cobrança: quem
+        responde para de levar lembrete por um tempo. Sem isso, a pessoa
+        responderia e seria cobrada de novo na rodada seguinte — a forma
+        mais rápida de ensinar todo mundo a ignorar o sistema.
+        """
+        corte = (datetime.now() - timedelta(hours=horas)).isoformat()
+        return self.con.execute(
+            "SELECT 1 FROM respostas_email WHERE acao_id = ? AND recebida_em >= ?",
+            (acao_id, corte),
+        ).fetchone() is not None
+
+    def respostas_de(self, acao_id: str) -> list[sqlite3.Row]:
+        return list(self.con.execute(
+            "SELECT * FROM respostas_email WHERE acao_id = ?"
+            " ORDER BY recebida_em", (acao_id,)
+        ))
+
+    def acoes_aguardando_resposta(self) -> list[Acao]:
+        """Ações que ainda esperam retorno de alguém.
+
+        Inclui a vencida e a escalada de propósito: resposta que chega
+        atrasada continua sendo resposta, e é justamente nesses casos que
+        importa registrar que a pessoa finalmente se manifestou.
+        """
+        return [
+            _para_acao(linha) for linha in self.con.execute(
+                "SELECT * FROM acoes WHERE estado IN (?, ?, ?) ORDER BY prazo",
+                (Estado.ABERTA.value, Estado.ESCALADA.value,
+                 Estado.VENCIDA.value),
+            )
+        ]
 
     # ------------------------------------------------------------- cobranças
 

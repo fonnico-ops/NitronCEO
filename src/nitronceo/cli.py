@@ -8,6 +8,7 @@
     nitronceo validar               # confere matriz + queries sem tocar no ERP
     nitronceo dashboard -o x.html   # gera o painel do pipeline
     nitronceo importar respostas.json   # traz as respostas do painel de volta
+    nitronceo respostas             # lê a caixa e amarra as respostas às ações
     nitronceo renato                # leitura cruzada da rodada, para o CEO
     nitronceo renato --dossie       # só o material, sem chamar o modelo
     nitronceo rodar --com-renato    # ele escreve o texto de cada cobrança
@@ -26,6 +27,8 @@ from .config import RAIZ, carregar
 from .dashboard import gerar
 from .motor import Motor, pulso
 from .notificadores import Console, EmailOutlook, GoHighLevel, Teams
+from .notificadores.graph import _Graph
+from .respostas import LeitorDeCaixa
 from .repositorio import Repositorio
 from .sankhya import FonteArquivo, SankhyaREST, montar_sql
 
@@ -275,6 +278,44 @@ def cmd_renato(args) -> int:
         repo.fechar()
 
 
+def cmd_respostas(args) -> int:
+    """Lê a caixa que assina as cobranças e amarra as respostas às ações.
+
+    Sem isto, quem responde o e-mail continua sendo cobrado: a resposta
+    fica na caixa de entrada e a ação segue aberta subindo a escada. O elo
+    é o token `[NTR-xxxxxxxx]` que vai no assunto e sobrevive ao `RE:`.
+    """
+    repo = Repositorio(args.banco)
+    try:
+        caixa = args.caixa or os.getenv("MS_REMETENTE")
+        if not caixa:
+            print(
+                "Diga qual caixa ler: --caixa ou MS_REMETENTE. É a mesma que "
+                "assina as cobranças; ler outra não acha resposta nenhuma.",
+                file=sys.stderr,
+            )
+            return 2
+
+        leitor = LeitorDeCaixa(_Graph(), caixa, repo)
+        lidas = leitor.ler(dias=args.dias)
+        if not lidas:
+            print(f"Nenhuma resposta nova em {caixa} nos últimos {args.dias} dias.")
+            return 0
+
+        encerradas = sum(1 for r in lidas if r.encerra)
+        for r in lidas:
+            marca = "ENCERRA" if r.encerra else "parcial"
+            print(f"[{r.acao_id[:6]}] {marca:8} {r.de:32} {r.texto[:70]}")
+        print(
+            f"\n{len(lidas)} resposta(s) nova(s) · {encerradas} encerraram a "
+            f"cobrança · {len(lidas) - encerradas} seguram os lembretes sem "
+            "fechar o assunto"
+        )
+        return 0
+    finally:
+        repo.fechar()
+
+
 def cmd_validar(args) -> int:  # noqa: ARG001
     """Confere a matriz e monta todo o SQL sem executar nada."""
     cfg = carregar()
@@ -358,6 +399,12 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("validar", help="confere matriz e SQL sem tocar no ERP").set_defaults(
         func=cmd_validar
     )
+
+    sp = sub.add_parser("respostas", help="lê a caixa e amarra respostas às ações")
+    sp.add_argument("--caixa", help="caixa a ler (padrão: MS_REMETENTE)")
+    sp.add_argument("--dias", type=int, default=30,
+                    help="quantos dias para trás varrer (padrão: 30)")
+    sp.set_defaults(func=cmd_respostas)
 
     sp = sub.add_parser("importar", help="traz as respostas do painel publicado")
     sp.add_argument("arquivo", help="JSON exportado da base do artifact")

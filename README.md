@@ -104,6 +104,40 @@ nitronceo responder a1b2c3d4e5f6 "Protesto entra quinta; top 3 já em acordo."
 nitronceo importar respostas.json    # respostas vindas do painel publicado
 ```
 
+### Cobrar do seu e-mail, e ler a resposta
+
+`MS_REMETENTE` decide de qual caixa a cobrança sai. Apontando para a sua,
+ela chega como sua — com o peso que isso tem — e as pessoas respondem o
+e-mail, não o painel. Então o sistema precisa ler a resposta de volta,
+senão quem respondeu continua sendo cobrado:
+
+```bash
+export MS_REMETENTE=renato.fonseca@nitron.com.br
+nitronceo rodar --canais email
+nitronceo respostas                  # lê a caixa e amarra à ação
+```
+
+O elo é um token no assunto, que sobrevive ao `RE:` do Outlook:
+
+```
+⏰ COBRANÇA [NTR-a1b2c3d4]: NTR Log emitiu apenas 2.6% do frete
+```
+
+Duas regras, e as duas são deliberadas:
+
+- **Responder não encerra.** Uma resposta é registrada, aparece no painel e
+  segura os lembretes por 24h (`NITRONCEO_CARENCIA_H`). A ação só fecha
+  quando a pessoa começa a resposta com **RESOLVIDO**. "Vou ver amanhã" é
+  retorno legítimo e não é solução — encerrar nele ensinaria o sistema a
+  aceitar evasiva.
+- **A carência é uma promessa que o código cumpre.** O corpo da cobrança
+  diz que responder segura o lembrete; `cobrar_pendentes` pula quem
+  respondeu dentro da janela. Responder e ser cobrado na rodada seguinte é
+  a forma mais rápida de ensinar o time a ignorar o sistema.
+
+Dedupe por `internetMessageId`: a caixa é varrida inteira a cada rodada, e
+a mesma resposta nunca entra duas vezes.
+
 ### Canais: dá para rodar só com e-mail
 
 `--canais` escolhe o que fica no ar. **O GHL nunca liga sozinho** — ele só
@@ -335,12 +369,13 @@ src/nitronceo/
   repositorio.py        SQLite: sinais, ações, cobranças
   motor.py              orquestração + pulso do CEO
   analista.py           Renato: dossiê, leitura cruzada, redação da cobrança
+  respostas.py          lê a caixa e amarra a resposta de volta na ação
   dashboard.py          painel do pipeline: drill-down + respostas
   notificadores/        console (dry-run), Teams/Outlook (Graph) e GHL
-tests/                  42 testes; 23 fixtures com dados reais de produção
+tests/                  52 testes; 23 fixtures com dados reais de produção
 docs/                   arquitetura, governança, achados de dados
 ```
 
 ```bash
-python -m pytest tests/ -q     # 42 passed
+python -m pytest tests/ -q     # 52 passed
 ```

@@ -23,6 +23,7 @@ from .cobranca import Cobranca, aplicar, proxima_cobranca
 from .config import RAIZ, Config
 from .notificadores.base import Mensagem, Notificador
 from .repositorio import Repositorio
+from .respostas import marcar
 from .sankhya import Fonte, FonteArquivo, montar_sql
 
 # Link do painel publicado. Quem é cobrado responde LÁ, não no terminal —
@@ -42,6 +43,12 @@ class Redator(Protocol):
         self, acao: Acao, sinal: Sinal, kpi: dict[str, Any]
     ) -> str | None: ...
 
+
+# Quanto tempo uma resposta por e-mail segura os lembretes. É a promessa
+# feita no corpo da cobrança, e ela tem que valer: responder e ser cobrado
+# na rodada seguinte é a forma mais rápida de ensinar a ignorar o sistema.
+# Não encerra nada — só compra silêncio até a pessoa ter tempo de agir.
+CARENCIA_APOS_RESPOSTA_H = float(os.getenv("NITRONCEO_CARENCIA_H", "24"))
 
 ICONE = {
     Nivel.VERDE: "🟢",
@@ -141,6 +148,10 @@ class Motor:
             cobranca = proxima_cobranca(acao, self.cfg)
             if not cobranca:
                 continue
+            if self.repo.respondeu_nas_ultimas(acao.id, CARENCIA_APOS_RESPOSTA_H):
+                # Respondeu há pouco: o assunto não fechou, mas cobrar de
+                # novo agora seria cobrar quem já se manifestou.
+                continue
             self._notificar_cobranca(cobranca)
             novo_estado = aplicar(acao, cobranca)
             self.repo.atualizar_estado(acao.id, novo_estado, acao.escalonamentos)
@@ -162,7 +173,7 @@ class Motor:
 
         reincidencia = self.repo.dias_consecutivos_ruins(kpi["id"])
         msg = Mensagem(
-            assunto=f"{ICONE[sinal.nivel]} {acao.titulo}",
+            assunto=f"{ICONE[sinal.nivel]} {marcar(acao.id)} {acao.titulo}",
             corpo_md=self._corpo(acao, sinal, kpi, reincidencia),
             destinatarios=papel.emails,
             upns=papel.upns,
@@ -187,12 +198,12 @@ class Motor:
         corpo += [f"- {p}" for p in acao.passos]
         corpo += [
             "",
-            f"**Responda no painel:** {PAINEL}#cob-{acao.id}",
+            f"**Responda neste e-mail** ou no painel: {PAINEL}#cob-{acao.id}",
         ]
 
         prefixo = "ESCALADA" if cobranca.escalada else "COBRANÇA"
         msg = Mensagem(
-            assunto=f"⏰ {prefixo}: {acao.titulo}",
+            assunto=f"⏰ {prefixo} {marcar(acao.id)}: {acao.titulo}",
             corpo_md="\n".join(corpo),
             destinatarios=papel.emails,
             upns=papel.upns,
@@ -221,9 +232,11 @@ class Motor:
         return [
             f"Prazo de resposta: {acao.prazo:%d/%m às %H:%M} "
             f"({acao.horas_restantes():.0f}h).",
-            f"**Responda no painel:** {PAINEL}#cob-{acao.id}",
-            "Um retorno parcial é bem-vindo e não para o relógio; marque "
-            "*isto encerra a cobrança* só quando o assunto estiver resolvido.",
+            f"**Responda neste e-mail** ou no painel: {PAINEL}#cob-{acao.id}",
+            f"Responder já me avisa e segura os lembretes por "
+            f"{CARENCIA_APOS_RESPOSTA_H:.0f}h. Para encerrar de vez, comece a "
+            "resposta com **RESOLVIDO** — um retorno parcial é bem-vindo e "
+            "mantém a ação aberta, que é o certo.",
             "",
             f"_Base do número: {kpi['sql']} — apurado em "
             f"{sinal.medido_em:%d/%m/%Y %H:%M}._",
@@ -262,10 +275,11 @@ class Motor:
             "",
             f"Prazo de resposta: {acao.prazo:%d/%m às %H:%M} "
             f"({acao.horas_restantes():.0f}h).",
-            f"**Responda no painel:** {PAINEL}#cob-{acao.id}",
-            "A cobrança abre já aberta; escreva sua resposta no campo dela. "
-            "Marque *isto encerra a cobrança* só quando o assunto estiver "
-            "resolvido — um retorno parcial é bem-vindo e não para o relógio.",
+            f"**Responda neste e-mail** ou no painel: {PAINEL}#cob-{acao.id}",
+            f"Responder já me avisa e segura os lembretes por "
+            f"{CARENCIA_APOS_RESPOSTA_H:.0f}h. Para encerrar de vez, comece a "
+            "resposta com **RESOLVIDO**. Um retorno parcial é bem-vindo e "
+            "mantém a ação aberta — é assim que tem que ser.",
             "",
             f"_Base do número: {kpi['sql']} — apurado em "
             f"{sinal.medido_em:%d/%m/%Y %H:%M}._",
