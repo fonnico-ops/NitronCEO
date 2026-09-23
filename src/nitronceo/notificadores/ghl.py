@@ -43,6 +43,7 @@ Variáveis de ambiente:
 from __future__ import annotations
 
 import os
+from datetime import datetime  # noqa: TC003 - usado na anotação de exportar_emails
 from typing import Any
 
 from .base import Mensagem
@@ -190,6 +191,59 @@ class GoHighLevel:
             resp.raise_for_status()
 
         return ok
+
+    # ---------------------------------------------------------- respostas
+
+    def exportar_emails(
+        self, desde: "datetime", limite: int = 100
+    ) -> list[dict[str, Any]]:
+        """E-mails da location desde a data, mais novos primeiro.
+
+        É por aqui que a resposta a uma cobrança enviada pelo GHL volta:
+        ela não chega em caixa nenhuma nossa, chega como mensagem
+        `inbound` na conversa. O `limit` tem piso de 10 do lado do GHL.
+        """
+        pagina, cursor = [], None
+        while True:
+            params = {
+                "channel": "Email",
+                "limit": min(max(limite - len(pagina), 10), 100),
+                "startDate": desde.astimezone().isoformat(),
+                "sortBy": "createdAt",
+                "sortOrder": "desc",
+            }
+            if cursor:
+                params["cursor"] = cursor
+            resp = self._http().get(
+                f"{BASE}/conversations/messages/export",
+                params=params,
+                headers=self._cabecalhos(),
+                timeout=30,
+            )
+            resp.raise_for_status()
+            corpo = resp.json()
+            pagina += corpo.get("messages", [])
+            cursor = corpo.get("nextCursor")
+            # O cursor do GHL vale 2 minutos; parar no limite pedido evita
+            # paginar uma caixa inteira atrás de meia dúzia de respostas.
+            if not cursor or len(pagina) >= limite:
+                return pagina[:limite]
+
+    def email_detalhe(self, email_message_id: str) -> dict[str, Any]:
+        """O e-mail inteiro: `from`, `to`, `body`, `subject`.
+
+        Necessário porque a listagem devolve a mensagem `inbound`
+        praticamente vazia — só id, direction e `meta.email`. O corpo e o
+        remetente da resposta só existem aqui.
+        """
+        resp = self._http().get(
+            f"{BASE}/conversations/messages/email/{email_message_id}",
+            headers=self._cabecalhos(),
+            timeout=30,
+        )
+        resp.raise_for_status()
+        corpo = resp.json()
+        return corpo.get("emailMessage", corpo)
 
     # --------------------------------------------------------- diagnóstico
 

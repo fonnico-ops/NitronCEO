@@ -194,6 +194,27 @@ Duas regras, e as duas são deliberadas:
 Dedupe por `internetMessageId`: a caixa é varrida inteira a cada rodada, e
 a mesma resposta nunca entra duas vezes.
 
+### Ler a resposta que volta pelo GHL
+
+Cobrança enviada pelo GHL não volta para caixa nenhuma: a resposta chega
+como mensagem `inbound` **dentro da conversa**. Sem ler dali, quem
+responde uma cobrança do GHL continuaria sendo cobrado.
+
+```bash
+nitronceo respostas --canal ghl
+```
+
+Mesma regra de encerramento do outro canal — quem é cobrado não precisa
+saber por qual cano a cobrança veio.
+
+Uma armadilha do formato, conferida na conversa real: a mensagem
+`inbound` do GHL vem **quase vazia** — sem `subject`, sem `body` e sem
+`from` na raiz. O assunto está em `meta.email.subject`, e o corpo só
+existe no detalhe (`/conversations/messages/email/{id}`). Procurar
+`msg["subject"]`, que é o óbvio, faz o leitor achar zero respostas **sem
+reclamar** — o pior modo de falhar possível para esta peça. Há teste
+travando exatamente isso.
+
 ### Canais: dá para rodar só com e-mail
 
 `--canais` escolhe o que fica no ar. **O GHL nunca liga sozinho** — ele só
@@ -428,11 +449,11 @@ src/nitronceo/
   respostas.py          lê a caixa e amarra a resposta de volta na ação
   dashboard.py          painel do pipeline: drill-down + respostas
   notificadores/        console (dry-run), Teams/Outlook (Graph) e GHL
-tests/                  58 testes; 23 fixtures com dados reais de produção
+tests/                  64 testes; 23 fixtures com dados reais de produção
 docs/                   arquitetura, governança, achados de dados,
                         pedido de permissões para a TI
 ```
 
 ```bash
-python -m pytest tests/ -q     # 58 passed
+python -m pytest tests/ -q     # 64 passed
 ```

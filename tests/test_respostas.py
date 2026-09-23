@@ -179,3 +179,174 @@ def test_resposta_para_acao_desconhecida_e_ignorada(tmp_path):
 
     assert LeitorDeCaixa(graph, "renato.fonseca@nitron.com.br", repo).ler() == []
     repo.fechar()
+
+
+# ------------------------------------------------- respostas pelo GHL
+
+
+class GhlFalso:
+    """Devolve o que o GHL devolve de verdade — inclusive o formato pobre
+    das mensagens `inbound`, que foi onde a primeira versão deste leitor
+    quebrou em silêncio."""
+
+    def __init__(self, mensagens, detalhes=None):
+        self.mensagens = mensagens
+        self.detalhes = detalhes or {}
+        self.pedidos = []
+        self.detalhes_pedidos = []
+
+    def exportar_emails(self, desde, limite=100):
+        self.pedidos.append((desde, limite))
+        return self.mensagens
+
+    def email_detalhe(self, email_message_id):
+        self.detalhes_pedidos.append(email_message_id)
+        return self.detalhes[email_message_id]
+
+
+def _ghl_inbound(assunto, mid="g1", email_id="e1"):
+    """Uma resposta como a listagem do GHL realmente a devolve.
+
+    Conferido na conversa wAzlDQHslpBokdbBYue2 em 23/09/2026: a mensagem
+    `inbound` NÃO traz `subject`, `body` nem `from` na raiz. O assunto vem
+    em `meta.email.subject`, e o resto só existe no detalhe do e-mail.
+    """
+    return {
+        "id": mid, "direction": "inbound", "type": 3,
+        "contactId": "AEfhFMAW6yLwumd6TvWE",
+        "conversationId": "wAzlDQHslpBokdbBYue2",
+        "contentType": "text/html",
+        "dateAdded": datetime.now().isoformat(),
+        "messageType": "TYPE_EMAIL",
+        "meta": {"email": {"messageIds": [email_id], "direction": "inbound",
+                           "subject": assunto}},
+    }
+
+
+def _ghl_detalhe(corpo, de="Forla Silva <forla.silva@nitron.com.br>"):
+    return {"body": corpo, "from": de,
+            "to": ["renato.fonseca@nitron.com.br"], "direction": "inbound"}
+
+
+def _ghl_outbound(assunto, corpo, mid="o1"):
+    """A cobrança, como o GHL a devolve: com body e subject na raiz."""
+    return {
+        "id": mid, "direction": "outbound", "type": 3, "subject": assunto,
+        "body": corpo, "from": "Nitron <marketing@nitron.com.br>",
+        "contactId": "AEfhFMAW6yLwumd6TvWE",
+        "conversationId": "wAzlDQHslpBokdbBYue2",
+        "dateAdded": datetime.now().isoformat(), "messageType": "TYPE_EMAIL",
+        "meta": {"email": {"messageIds": ["x1"], "subject": assunto}},
+    }
+
+
+def test_resposta_na_conversa_do_ghl_para_a_escada(tmp_path):
+    from nitronceo.respostas import LeitorDoGHL
+
+    repo = _repo(tmp_path)
+    ghl = GhlFalso(
+        [_ghl_inbound(f"RE: 🚨 {marcar(ACAO_ID)} NTR Log emitiu 2.6%")],
+        {"e1": _ghl_detalhe("Conciliei com a NTR, faltam 18 notas de agosto.")},
+    )
+
+    lidas = LeitorDoGHL(ghl, repo).ler()
+
+    assert len(lidas) == 1
+    # o assunto veio de meta.email e o corpo do detalhe do e-mail
+    assert ghl.detalhes_pedidos == ["e1"]
+    assert lidas[0].de == "forla.silva@nitron.com.br"
+    assert lidas[0].encerra is False
+    # não encerra, mas segura o lembrete — igual ao caminho do Outlook
+    assert repo.buscar_acao(ACAO_ID).estado is Estado.ABERTA
+    assert repo.respondeu_nas_ultimas(ACAO_ID, 24)
+    repo.fechar()
+
+
+def test_a_propria_cobranca_na_conversa_nao_e_resposta(tmp_path):
+    # Na conversa do GHL a cobrança aparece ao lado da resposta. Sem o
+    # corte por direction ela entraria como se fosse retorno da pessoa.
+    from nitronceo.respostas import LeitorDoGHL
+
+    repo = _repo(tmp_path)
+    ghl = GhlFalso([
+        _ghl_outbound(f"🚨 {marcar(ACAO_ID)} NTR Log emitiu 2.6%",
+                      "O que preciso de você: conciliar o mês...")
+    ])
+
+    assert LeitorDoGHL(ghl, repo).ler() == []
+    assert ghl.detalhes_pedidos == [], "nem vale buscar o detalhe da própria"
+    repo.fechar()
+
+
+def test_RESOLVIDO_pelo_ghl_encerra_igual_ao_email(tmp_path):
+    from nitronceo.respostas import LeitorDoGHL
+
+    repo = _repo(tmp_path)
+    ghl = GhlFalso(
+        [_ghl_inbound(f"RE: {marcar(ACAO_ID)} NTR Log")],
+        {"e1": _ghl_detalhe("RESOLVIDO. As 18 notas saíram hoje.")},
+    )
+
+    lidas = LeitorDoGHL(ghl, repo).ler()
+
+    assert lidas[0].encerra is True
+    assert repo.buscar_acao(ACAO_ID).estado is Estado.RESPONDIDA
+    repo.fechar()
+
+
+def test_dedupe_vale_entre_os_dois_canais(tmp_path):
+    """Uma mesma resposta não pode entrar duas vezes, nem por canais
+    diferentes: a tabela é uma só, com o id da mensagem como chave."""
+    from nitronceo.respostas import LeitorDoGHL
+
+    repo = _repo(tmp_path)
+    ghl = GhlFalso(
+        [_ghl_inbound(f"RE: {marcar(ACAO_ID)} NTR Log", mid="mesmo")],
+        {"e1": _ghl_detalhe("Conciliando.")},
+    )
+    leitor = LeitorDoGHL(ghl, repo)
+
+    assert len(leitor.ler()) == 1
+    assert len(leitor.ler()) == 0
+    assert len(repo.respostas_de(ACAO_ID)) == 1
+    repo.fechar()
+
+
+def test_assunto_da_inbound_vem_de_meta_email():
+    """A regressão que este teste trava.
+
+    A primeira versão do leitor procurava `msg["subject"]`. Nas mensagens
+    `inbound` reais esse campo não existe — o assunto está em
+    `meta.email.subject`. O leitor encontrava zero respostas e não
+    reclamava, que é exatamente o modo de falhar que ele existe para
+    impedir.
+    """
+    from nitronceo.respostas import assunto_de
+
+    inbound = _ghl_inbound("RES: RESSALVA DA NF 137973 // NITRONPLAST")
+    assert "subject" not in inbound, "a inbound real não tem subject na raiz"
+    assert assunto_de(inbound) == "RES: RESSALVA DA NF 137973 // NITRONPLAST"
+
+    outbound = _ghl_outbound("Relatório de Logística", "corpo")
+    assert assunto_de(outbound) == "Relatório de Logística"
+    assert assunto_de({}) == ""
+
+
+def test_detalhe_que_falha_nao_derruba_as_outras_respostas(tmp_path):
+    from nitronceo.respostas import LeitorDoGHL
+
+    class GhlQuebrado(GhlFalso):
+        def email_detalhe(self, email_message_id):
+            raise RuntimeError("500 do GHL")
+
+    repo = _repo(tmp_path)
+    ghl = GhlQuebrado([_ghl_inbound(f"RE: {marcar(ACAO_ID)} NTR Log")])
+
+    lidas = LeitorDoGHL(ghl, repo).ler()
+
+    # a resposta é registrada sem corpo — e sem corpo não encerra nada,
+    # que é o comportamento seguro.
+    assert len(lidas) == 1
+    assert lidas[0].encerra is False
+    assert repo.buscar_acao(ACAO_ID).estado is Estado.ABERTA
+    repo.fechar()

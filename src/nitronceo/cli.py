@@ -29,7 +29,7 @@ from .dashboard import gerar
 from .motor import Motor, pulso
 from .notificadores import Console, EmailOutlook, GoHighLevel, Teams
 from .notificadores.graph import _Graph
-from .respostas import LeitorDeCaixa
+from .respostas import LeitorDeCaixa, LeitorDoGHL
 from .repositorio import Repositorio
 from .sankhya import FonteArquivo, SankhyaREST, montar_sql
 
@@ -288,6 +288,10 @@ def cmd_respostas(args) -> int:
     """
     repo = Repositorio(args.banco)
     try:
+        if args.canal == "ghl":
+            lidas = LeitorDoGHL(GoHighLevel(), repo).ler(dias=args.dias)
+            return _mostrar_respostas(lidas, f"nas conversas do GHL", args.dias)
+
         caixa = args.caixa or os.getenv("MS_REMETENTE")
         if not caixa:
             print(
@@ -297,24 +301,27 @@ def cmd_respostas(args) -> int:
             )
             return 2
 
-        leitor = LeitorDeCaixa(_Graph(), caixa, repo)
-        lidas = leitor.ler(dias=args.dias)
-        if not lidas:
-            print(f"Nenhuma resposta nova em {caixa} nos últimos {args.dias} dias.")
-            return 0
-
-        encerradas = sum(1 for r in lidas if r.encerra)
-        for r in lidas:
-            marca = "ENCERRA" if r.encerra else "parcial"
-            print(f"[{r.acao_id[:6]}] {marca:8} {r.de:32} {r.texto[:70]}")
-        print(
-            f"\n{len(lidas)} resposta(s) nova(s) · {encerradas} encerraram a "
-            f"cobrança · {len(lidas) - encerradas} seguram os lembretes sem "
-            "fechar o assunto"
-        )
-        return 0
+        lidas = LeitorDeCaixa(_Graph(), caixa, repo).ler(dias=args.dias)
+        return _mostrar_respostas(lidas, f"em {caixa}", args.dias)
     finally:
         repo.fechar()
+
+
+def _mostrar_respostas(lidas, onde: str, dias: int) -> int:
+    if not lidas:
+        print(f"Nenhuma resposta nova {onde} nos últimos {dias} dias.")
+        return 0
+
+    encerradas = sum(1 for r in lidas if r.encerra)
+    for r in lidas:
+        marca = "ENCERRA" if r.encerra else "parcial"
+        print(f"[{r.acao_id[:6]}] {marca:8} {r.de:32} {r.texto[:70]}")
+    print(
+        f"\n{len(lidas)} resposta(s) nova(s) · {encerradas} encerraram a "
+        f"cobrança · {len(lidas) - encerradas} seguram os lembretes sem "
+        "fechar o assunto"
+    )
+    return 0
 
 
 def cmd_ghl_contatos(args) -> int:  # noqa: ARG001
@@ -463,6 +470,9 @@ def main(argv: list[str] | None = None) -> int:
     ).set_defaults(func=cmd_ghl_contatos)
 
     sp = sub.add_parser("respostas", help="lê a caixa e amarra respostas às ações")
+    sp.add_argument("--canal", choices=("email", "ghl"), default="email",
+                    help="de onde ler: a caixa do Microsoft 365 ou as "
+                         "conversas do GHL (padrão: email)")
     sp.add_argument("--caixa", help="caixa a ler (padrão: MS_REMETENTE)")
     sp.add_argument("--dias", type=int, default=30,
                     help="quantos dias para trás varrer (padrão: 30)")
