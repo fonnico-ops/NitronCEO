@@ -241,6 +241,52 @@ aprovar. O e-mail precisa de **`Mail.Send` e mais nada**. Começar por
 `--canais email` tira o sistema do papel com uma permissão; o Teams entra
 depois, sem mudar uma linha de configuração da matriz.
 
+### Disparo: uma mensagem por gestor, a cada 2 dias, às 17h
+
+```bash
+nitronceo disparar          # decide sozinho se hoje é dia
+nitronceo disparar --agora  # ignora janela e cadência
+```
+
+```cron
+0 17 * * *  cd /opt/nitronceo && nitronceo disparar
+```
+
+O cron roda **todo dia** às 17h e o comando decide. A cadência mora no
+banco, não no cron: `0 17 */2 * *` escorrega na virada do mês e ninguém
+percebe.
+
+**Por que 17h**: o relógio do prazo começa quando a mensagem chega. Uma
+cobrança de 2h disparada de madrugada nasce vencida, e a escada dispara
+lembrete antes de alguém chegar ao escritório.
+
+**Por que agrupado**: na primeira rodada real, Alex e Charles receberam
+cinco e-mails cada no mesmo minuto. Cinco cobranças simultâneas não são
+cinco cobranças — são ruído, e ruído ensina a filtrar o remetente. As 21
+viram 8 mensagens, ordenadas por gravidade e prazo.
+
+O agrupamento é de **entrega**, não de responsabilidade: cada ponto
+mantém token, prazo e escada próprios.
+
+```
+🚨 [NTR-L-efef0194] Produção: 5 pontos fora da linha
+
+Alex, 5 pontos da sua área saíram da linha, 3 deles críticos.
+...
+## 1. 🚨 58.4% das paradas sem motivo apontado
+Prazo: 24/09 às 02:41 (24h) · para encerrar este ponto,
+escreva RESOLVIDO [NTR-ea21b257]
+```
+
+Como a resposta volta:
+
+| A pessoa escreve | O que acontece |
+|---|---|
+| qualquer coisa | registra em **todos** os pontos do lote e segura os lembretes de todos |
+| `RESOLVIDO [NTR-xxxxxxxx]` | encerra aquele ponto |
+| `RESOLVIDO` sozinho, lote de 1 | encerra |
+| `RESOLVIDO` sozinho, lote de vários | **não encerra nada** — uma palavra não fecha cinco assuntos que a pessoa talvez nem tenha lido |
+
 ### Relatório diário de acompanhamento
 
 Separado da cobrança, e de propósito: quem acompanha vê o quadro inteiro e
@@ -481,13 +527,14 @@ src/nitronceo/
   analista.py           Renato: dossiê, leitura cruzada, redação da cobrança
   respostas.py          lê a caixa e amarra a resposta de volta na ação
   relatorio.py          o quadro do dia para quem acompanha, sem cobrar
+  lote.py               agrupa as cobranças de um dono numa mensagem só
   dashboard.py          painel do pipeline: drill-down + respostas
   notificadores/        console (dry-run), Teams/Outlook (Graph) e GHL
-tests/                  80 testes; 23 fixtures com dados reais de produção
+tests/                  94 testes; 23 fixtures com dados reais de produção
 docs/                   arquitetura, governança, achados de dados,
                         pedido de permissões para a TI
 ```
 
 ```bash
-python -m pytest tests/ -q     # 80 passed
+python -m pytest tests/ -q     # 94 passed
 ```

@@ -49,9 +49,19 @@ from .repositorio import Repositorio
 # com prefixo para não colidir com número de pedido ou de nota.
 TOKEN = re.compile(r"\[NTR-([0-9a-f]{8})\]", re.IGNORECASE)
 
+# O lote: uma mensagem que carrega várias cobranças de um mesmo dono.
+# Precisa vir antes do TOKEN na busca, senão `[NTR-L-a1b2c3d4]` casaria
+# como se o "L-" não existisse.
+TOKEN_LOTE = re.compile(r"\[NTR-L-([0-9a-f]{8})\]", re.IGNORECASE)
+
 # A palavra que fecha. Sozinha numa linha ou no começo da resposta — não
 # vale no meio de uma frase, senão "isso não está resolvido" encerraria.
 ENCERRA = re.compile(r"^\s*(resolvido|resolvida)\b", re.IGNORECASE)
+
+# Numa resposta a lote, o RESOLVIDO precisa dizer de qual ponto fala.
+ENCERRA_ALVO = re.compile(
+    r"resolvid[oa]\s*\[NTR-([0-9a-f]{8})\]", re.IGNORECASE
+)
 
 # Onde o Outlook começa a citar o e-mail original. Tudo daqui para baixo é
 # a cobrança de volta, não a resposta da pessoa.
@@ -67,9 +77,32 @@ def marcar(acao_id: str) -> str:
     return f"[NTR-{acao_id[:8].lower()}]"
 
 
+def marcar_lote(token: str) -> str:
+    return f"[NTR-L-{token[:8].lower()}]"
+
+
 def acao_do_assunto(assunto: str) -> str | None:
-    achado = TOKEN.search(assunto or "")
+    """A ação de um assunto — só de cobrança individual, nunca de lote."""
+    assunto = assunto or ""
+    if TOKEN_LOTE.search(assunto):
+        return None
+    achado = TOKEN.search(assunto)
     return achado.group(1).lower() if achado else None
+
+
+def lote_do_assunto(assunto: str) -> str | None:
+    achado = TOKEN_LOTE.search(assunto or "")
+    return achado.group(1).lower() if achado else None
+
+
+def encerrados_no_texto(texto: str) -> list[str]:
+    """Os pontos que a pessoa marcou como RESOLVIDO, por token.
+
+    Numa resposta a lote, um `RESOLVIDO` solto não pode fechar cinco
+    assuntos: a pessoa precisa dizer qual. Com um ponto só, o solto vale
+    — aí não há ambiguidade a resolver.
+    """
+    return [m.group(1).lower() for m in ENCERRA_ALVO.finditer(texto or "")]
 
 
 def limpar(corpo: str) -> str:
@@ -101,6 +134,37 @@ def limpar(corpo: str) -> str:
 
 def encerra(texto: str) -> bool:
     return bool(ENCERRA.match(texto or ""))
+
+
+def alvos_da_resposta(
+    assunto: str, texto: str, conhecidas: dict[str, str], repo: Repositorio
+) -> list[tuple[str, bool]]:
+    """(ação, encerra) para cada cobrança que esta resposta atinge.
+
+    Cobrança individual devolve um par. Resposta a lote devolve um par por
+    cobrança do lote: todas recebem o retorno — a pessoa se manifestou, e
+    seria absurdo continuar cobrando as outras quatro por causa do formato
+    da mensagem. Só encerra o que ela marcou com RESOLVIDO e o token.
+    """
+    marca = acao_do_assunto(assunto)
+    if marca:
+        acao_id = conhecidas.get(marca)
+        return [(acao_id, encerra(texto))] if acao_id else []
+
+    token = lote_do_assunto(assunto)
+    if not token:
+        return []
+
+    do_lote = [a for a in repo.acoes_do_lote(token) if a in conhecidas.values()]
+    if not do_lote:
+        return []
+
+    marcados = set(encerrados_no_texto(texto))
+    if not marcados and encerra(texto) and len(do_lote) == 1:
+        # Um ponto só no lote: RESOLVIDO solto não tem a que mais se referir.
+        return [(do_lote[0], True)]
+
+    return [(a, a[:8].lower() in marcados) for a in do_lote]
 
 
 @dataclass
@@ -152,11 +216,6 @@ class LeitorDeCaixa:
             if not msg_id or self.repo.resposta_ja_lida(msg_id):
                 continue
 
-            marca = acao_do_assunto(msg.get("subject", ""))
-            acao_id = conhecidas.get(marca) if marca else None
-            if not acao_id:
-                continue
-
             de = (
                 (msg.get("from") or {}).get("emailAddress", {}).get("address", "")
             ).lower()
@@ -168,18 +227,22 @@ class LeitorDeCaixa:
                 "bodyPreview", ""
             )
             texto = limpar(corpo)
-            fecha = encerra(texto)
             quando = _data(msg.get("receivedDateTime"))
-
-            self.repo.gravar_resposta_email(
-                msg_id, acao_id, de, texto, fecha, quando
+            alvos = alvos_da_resposta(
+                msg.get("subject", ""), texto, conhecidas, self.repo
             )
-            if fecha:
-                self.repo.registrar_resposta(acao_id, texto, quando)
+            if not alvos:
+                continue
 
-            novas.append(
-                RespostaLida(acao_id, de, texto, fecha, quando, msg_id)
-            )
+            for acao_id, fecha in alvos:
+                self.repo.gravar_resposta_email(
+                    f"{msg_id}#{acao_id}", acao_id, de, texto, fecha, quando
+                )
+                if fecha:
+                    self.repo.registrar_resposta(acao_id, texto, quando)
+                novas.append(
+                    RespostaLida(acao_id, de, texto, fecha, quando, msg_id)
+                )
         return novas
 
 
@@ -231,9 +294,8 @@ class LeitorDoGHL:
             if not msg_id or self.repo.resposta_ja_lida(msg_id):
                 continue
 
-            marca = acao_do_assunto(assunto_de(msg))
-            acao_id = conhecidas.get(marca) if marca else None
-            if not acao_id:
+            assunto = assunto_de(msg)
+            if not (acao_do_assunto(assunto) or lote_do_assunto(assunto)):
                 continue
 
             # A listagem devolve a mensagem `inbound` quase vazia: sem
@@ -246,16 +308,20 @@ class LeitorDoGHL:
                 de = de or _remetente(detalhe)
 
             texto = limpar(corpo)
-            fecha = encerra(texto)
             quando = _data(msg.get("dateAdded"))
+            alvos = alvos_da_resposta(assunto, texto, conhecidas, self.repo)
+            if not alvos:
+                continue
 
-            self.repo.gravar_resposta_email(
-                msg_id, acao_id, de, texto, fecha, quando
-            )
-            if fecha:
-                self.repo.registrar_resposta(acao_id, texto, quando)
-
-            novas.append(RespostaLida(acao_id, de, texto, fecha, quando, msg_id))
+            for acao_id, fecha in alvos:
+                self.repo.gravar_resposta_email(
+                    f"{msg_id}#{acao_id}", acao_id, de, texto, fecha, quando
+                )
+                if fecha:
+                    self.repo.registrar_resposta(acao_id, texto, quando)
+                novas.append(
+                    RespostaLida(acao_id, de, texto, fecha, quando, msg_id)
+                )
         return novas
 
     def _detalhe(self, msg: dict[str, Any]) -> dict[str, Any]:

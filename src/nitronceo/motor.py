@@ -21,6 +21,7 @@ from .acoes import Acao, Estado, criar, formatar
 from .avaliador import Nivel, Sinal, avaliar
 from .cobranca import Cobranca, aplicar, proxima_cobranca
 from .config import RAIZ, Config
+from .lote import agrupar
 from .notificadores.base import Mensagem, Notificador
 from .repositorio import Repositorio
 from .respostas import marcar
@@ -139,6 +140,32 @@ class Motor:
         rodada.desvios = list(self.desvios)
         rodada.falhas_de_envio = list(self.falhas_de_envio)
         return rodada
+
+    # ------------------------------------------------------------ agrupado
+
+    def disparar_agrupado(self, acoes: list[Acao]) -> list[Any]:
+        """Uma mensagem por dono, com tudo dele.
+
+        Cada cobrança mantém token, prazo e escada próprios — o que muda é
+        que chegam juntas. Cinco e-mails no mesmo minuto não são cinco
+        cobranças; são ruído, e ruído ensina a filtrar o remetente.
+        """
+        lotes = agrupar(acoes, self.cfg, PAINEL)
+        for lote in lotes:
+            msg = Mensagem(
+                assunto=lote.assunto,
+                corpo_md=lote.corpo_md,
+                destinatarios=lote.emails,
+                upns=lote.papel.upns,
+                contatos_ghl=lote.contatos_ghl,
+                urgente=any(a.nivel is Nivel.CRITICO for a in lote.acoes),
+            )
+            self._despachar(["ghl", "email", "teams"], msg, lote.emails)
+            self.repo.registrar_lote(
+                lote.token, [a.id for a in lote.acoes], lote.papel.chave
+            )
+        self.repo.registrar_disparo(len(lotes), len(acoes))
+        return lotes
 
     # ----------------------------------------------------------------- cobrar
 

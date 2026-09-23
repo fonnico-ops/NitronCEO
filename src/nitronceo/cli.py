@@ -12,6 +12,7 @@
     nitronceo ghl-contatos          # resolve os contatos do GHL e aponta colisões
     nitronceo relatorio             # o quadro do dia para quem acompanha
     nitronceo relatorio --enviar    # e manda para a lista de acompanhamento
+    nitronceo disparar              # uma mensagem por gestor, a cada 2 dias
     nitronceo renato                # leitura cruzada da rodada, para o CEO
     nitronceo renato --dossie       # só o material, sem chamar o modelo
     nitronceo rodar --com-renato    # ele escreve o texto de cada cobrança
@@ -21,6 +22,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from datetime import datetime
 import signal
 import sys
 from pathlib import Path
@@ -327,6 +329,68 @@ def _mostrar_respostas(lidas, onde: str, dias: int) -> int:
     return 0
 
 
+# Cadência acordada com o CEO: 17h, de dois em dois dias. A hora importa
+# porque o relógio do prazo começa quando a mensagem chega — uma cobrança
+# de 2h disparada de madrugada nasce vencida.
+HORA_PADRAO = int(os.getenv("NITRONCEO_HORA_DISPARO", "17"))
+INTERVALO_DIAS = int(os.getenv("NITRONCEO_INTERVALO_DIAS", "2"))
+
+
+def cmd_disparar(args) -> int:
+    """Cobra cada gestor uma vez, com tudo o que é dele.
+
+    Pensado para um cron diário às 17h: o comando é que decide se hoje é
+    dia, consultando quando o último disparo saiu. Deixar a cadência no
+    cron (`0 17 */2 * *`) escorrega na virada do mês, e ninguém percebe.
+    """
+    motor, repo = _montar(args)
+    try:
+        agora = datetime.now()
+        if not args.agora and agora.hour != args.hora:
+            print(
+                f"Fora da janela: disparo é às {args.hora}h, são "
+                f"{agora:%H}h. Use --agora para ignorar."
+            )
+            return 0
+        if not args.agora and not repo.deve_disparar(args.intervalo, agora):
+            ultimo = repo.ultimo_disparo()
+            print(
+                f"Último disparo em {ultimo:%d/%m %H:%M}; a cadência é de "
+                f"{args.intervalo} dias. Nada a fazer hoje."
+            )
+            return 0
+
+        # A medição não notifica: quem entrega é o disparo agrupado, uma
+        # vez por gestor. Sem isto, a abertura de ação mandaria a cobrança
+        # avulsa e o gestor receberia duas vezes a mesma coisa.
+        notificadores = motor.notificadores
+        motor.notificadores = {}
+        rodada = motor.rodar(apenas=None, cobrar=False)
+        motor.notificadores = notificadores
+        abertas = repo.acoes_em_aberto()
+        if not abertas:
+            print("Nenhuma cobrança em aberto. Nada a disparar.")
+            return 0
+
+        lotes = motor.disparar_agrupado(abertas)
+        for lote in lotes:
+            print(
+                f"[{lote.token}] {lote.papel.quem:28} "
+                f"{len(lote.acoes)} ponto(s)"
+            )
+        print(
+            f"\n{len(lotes)} mensagens · {len(abertas)} cobranças · "
+            f"próximo disparo em {args.intervalo} dias"
+        )
+        if rodada.falhas_de_envio:
+            for canal, assunto, erro in rodada.falhas_de_envio:
+                print(f"⚠️  [{canal}] {assunto}: {erro}", file=sys.stderr)
+            return 1
+        return 0
+    finally:
+        repo.fechar()
+
+
 def cmd_relatorio(args) -> int:
     """O quadro inteiro do dia para quem acompanha, sem cobrar ninguém.
 
@@ -541,6 +605,17 @@ def main(argv: list[str] | None = None) -> int:
     sub.add_parser("validar", help="confere matriz e SQL sem tocar no ERP").set_defaults(
         func=cmd_validar
     )
+
+    sp = comum(sub.add_parser(
+        "disparar", help="uma mensagem por gestor, com tudo dele"
+    ))
+    sp.add_argument("--hora", type=int, default=HORA_PADRAO,
+                    help=f"hora da janela de disparo (padrão: {HORA_PADRAO}h)")
+    sp.add_argument("--intervalo", type=int, default=INTERVALO_DIAS,
+                    help=f"dias entre disparos (padrão: {INTERVALO_DIAS})")
+    sp.add_argument("--agora", action="store_true",
+                    help="ignora a janela e a cadência, e dispara já")
+    sp.set_defaults(func=cmd_disparar)
 
     sp = comum(sub.add_parser(
         "relatorio", help="o quadro do dia para quem acompanha"

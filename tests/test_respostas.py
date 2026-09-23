@@ -161,6 +161,23 @@ def test_mesma_resposta_nao_e_processada_duas_vezes(tmp_path):
     repo.fechar()
 
 
+def test_message_id_com_underline_nao_confunde_o_dedupe(tmp_path):
+    """Message-Id do Exchange costuma ter `_`.
+
+    Se o dedupe usasse LIKE, o `_` viraria coringa e duas respostas
+    diferentes passariam por uma só — a segunda sumiria em silêncio.
+    """
+    repo = _repo(tmp_path)
+    assert not repo.resposta_ja_lida("<AB_CD@nitron.com.br>")
+    repo.gravar_resposta_email(
+        "<AB_CD@nitron.com.br>", ACAO_ID, "x@y.z", "oi", False, datetime.now()
+    )
+    assert repo.resposta_ja_lida("<AB_CD@nitron.com.br>")
+    # o `_` não pode casar com outro caractere
+    assert not repo.resposta_ja_lida("<ABXCD@nitron.com.br>")
+    repo.fechar()
+
+
 def test_a_propria_cobranca_na_caixa_nao_e_resposta(tmp_path):
     # Sent Items e auto-encaminhamentos devolvem o e-mail do próprio CEO.
     repo = _repo(tmp_path)
@@ -350,3 +367,124 @@ def test_detalhe_que_falha_nao_derruba_as_outras_respostas(tmp_path):
     assert lidas[0].encerra is False
     assert repo.buscar_acao(ACAO_ID).estado is Estado.ABERTA
     repo.fechar()
+
+
+# ------------------------------------------- respostas a uma mensagem-lote
+
+
+def _lote_com(repo, quantas=3):
+    """Cria N ações e as registra como um lote entregue."""
+    from nitronceo.lote import marcar_lote
+
+    agora = datetime.now()
+    acoes = []
+    for n in range(quantas):
+        acao = Acao(
+            id=f"{n}{'a' * 11}", kpi_id=f"kpi{n}", titulo=f"Ponto {n}",
+            passos=["fazer"], dono="gerente_producao", nivel=Nivel.VERMELHO,
+            valor=1.0, unidade="numero", estado=Estado.ABERTA,
+            criada_em=agora - timedelta(hours=5),
+            prazo=agora + timedelta(hours=10), contexto={},
+        )
+        repo.salvar_acao(acao)
+        acoes.append(acao)
+    token = marcar_lote(acoes)
+    repo.registrar_lote(token, [a.id for a in acoes], "gerente_producao")
+    return token, acoes
+
+
+def _repo_vazio(tmp_path):
+    return Repositorio(tmp_path / "lote.db")
+
+
+def test_resposta_ao_lote_alcanca_todas_as_cobrancas(tmp_path):
+    """Quem respondeu não pode ser cobrado de novo por detalhe de formato."""
+    from nitronceo.respostas import LeitorDoGHL, marcar_lote as marcar_l
+
+    repo = _repo_vazio(tmp_path)
+    token, acoes = _lote_com(repo, 3)
+    ghl = GhlFalso(
+        [_ghl_inbound(f"RE: 🚨 {marcar_l(token)} Produção: 3 pontos")],
+        {"e1": _ghl_detalhe("Vi os três. Começo pelo setup amanhã cedo.")},
+    )
+
+    lidas = LeitorDoGHL(ghl, repo).ler()
+
+    assert len(lidas) == 3, "os três pontos recebem o retorno"
+    assert all(not r.encerra for r in lidas), "nenhum encerra sem RESOLVIDO"
+    for acao in acoes:
+        assert repo.respondeu_nas_ultimas(acao.id, 24)
+        assert repo.buscar_acao(acao.id).estado is Estado.ABERTA
+    repo.fechar()
+
+
+def test_RESOLVIDO_com_token_encerra_so_aquele_ponto(tmp_path):
+    from nitronceo.respostas import LeitorDoGHL, marcar_lote as marcar_l
+
+    repo = _repo_vazio(tmp_path)
+    token, acoes = _lote_com(repo, 3)
+    alvo = acoes[1]
+    ghl = GhlFalso(
+        [_ghl_inbound(f"RE: {marcar_l(token)} Produção: 3 pontos")],
+        {"e1": _ghl_detalhe(
+            f"RESOLVIDO [NTR-{alvo.id[:8]}] — fechei as OS. Os outros dois "
+            "seguem comigo."
+        )},
+    )
+
+    LeitorDoGHL(ghl, repo).ler()
+
+    assert repo.buscar_acao(alvo.id).estado is Estado.RESPONDIDA
+    for outro in (acoes[0], acoes[2]):
+        assert repo.buscar_acao(outro.id).estado is Estado.ABERTA
+    repo.fechar()
+
+
+def test_RESOLVIDO_solto_nao_fecha_lote_de_varios(tmp_path):
+    """Uma palavra não pode encerrar cinco assuntos que a pessoa talvez
+    nem tenha lido."""
+    from nitronceo.respostas import LeitorDoGHL, marcar_lote as marcar_l
+
+    repo = _repo_vazio(tmp_path)
+    token, acoes = _lote_com(repo, 3)
+    ghl = GhlFalso(
+        [_ghl_inbound(f"RE: {marcar_l(token)} Produção: 3 pontos")],
+        {"e1": _ghl_detalhe("RESOLVIDO")},
+    )
+
+    LeitorDoGHL(ghl, repo).ler()
+
+    for acao in acoes:
+        assert repo.buscar_acao(acao.id).estado is Estado.ABERTA
+        assert repo.respondeu_nas_ultimas(acao.id, 24), "mas segura o lembrete"
+    repo.fechar()
+
+
+def test_RESOLVIDO_solto_fecha_lote_de_um_so(tmp_path):
+    # Com um ponto só não há ambiguidade a resolver.
+    from nitronceo.respostas import LeitorDoGHL, marcar_lote as marcar_l
+
+    repo = _repo_vazio(tmp_path)
+    token, acoes = _lote_com(repo, 1)
+    ghl = GhlFalso(
+        [_ghl_inbound(f"RE: {marcar_l(token)} 1 ponto")],
+        {"e1": _ghl_detalhe("RESOLVIDO. Já corrigi.")},
+    )
+
+    LeitorDoGHL(ghl, repo).ler()
+    assert repo.buscar_acao(acoes[0].id).estado is Estado.RESPONDIDA
+    repo.fechar()
+
+
+def test_token_de_lote_nao_e_confundido_com_token_de_acao():
+    from nitronceo.respostas import acao_do_assunto, lote_do_assunto
+
+    assunto = "RE: 🚨 [NTR-L-a1b2c3d4] Produção: 5 pontos fora da linha"
+    # sem a checagem de lote antes, o NTR- casaria e a resposta iria para
+    # uma ação inexistente de id "l-a1b2c3"
+    assert acao_do_assunto(assunto) is None
+    assert lote_do_assunto(assunto) == "a1b2c3d4"
+
+    individual = "RE: 🔴 [NTR-e0db1019] setup"
+    assert acao_do_assunto(individual) == "e0db1019"
+    assert lote_do_assunto(individual) is None

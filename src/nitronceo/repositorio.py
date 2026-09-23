@@ -73,6 +73,28 @@ CREATE TABLE IF NOT EXISTS respostas_email (
     lida_em     TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS ix_respostas_acao ON respostas_email(acao_id);
+
+-- Quando o último disparo de cobrança saiu. É o que sustenta a cadência
+-- de dois em dois dias sem depender do cron acertar o dia: o cron roda
+-- todo dia às 17h e pergunta aqui se hoje é dia.
+CREATE TABLE IF NOT EXISTS disparos (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    quando      TEXT NOT NULL,
+    lotes       INTEGER NOT NULL,
+    acoes       INTEGER NOT NULL
+);
+
+-- Um lote entregue: a mensagem única que um dono recebeu com várias
+-- cobranças dentro. Guardado para que a resposta ao lote possa ser
+-- distribuída entre todas as ações que ele carregava.
+CREATE TABLE IF NOT EXISTS lotes (
+    token       TEXT NOT NULL,
+    acao_id     TEXT NOT NULL REFERENCES acoes(id),
+    dono        TEXT NOT NULL,
+    enviado_em  TEXT NOT NULL,
+    PRIMARY KEY (token, acao_id)
+);
+CREATE INDEX IF NOT EXISTS ix_lotes_token ON lotes(token);
 """
 
 
@@ -196,12 +218,66 @@ class Repositorio:
         self.con.commit()
         return True
 
+    # ------------------------------------------------------ cadência e lotes
+
+    def ultimo_disparo(self) -> datetime | None:
+        linha = self.con.execute(
+            "SELECT quando FROM disparos ORDER BY id DESC LIMIT 1"
+        ).fetchone()
+        return datetime.fromisoformat(linha["quando"]) if linha else None
+
+    def deve_disparar(self, intervalo_dias: int, agora: datetime | None = None) -> bool:
+        """Hoje é dia de cobrar?
+
+        A cadência mora aqui, e não no cron, de propósito: `0 17 */2 * *`
+        escorrega na virada do mês e ninguém percebe. Assim o cron roda
+        todo dia às 17h e pergunta; a resposta é do banco, que sabe quando
+        o último disparo saiu de verdade.
+        """
+        ultimo = self.ultimo_disparo()
+        if ultimo is None:
+            return True
+        agora = agora or datetime.now()
+        return (agora.date() - ultimo.date()).days >= intervalo_dias
+
+    def registrar_disparo(self, lotes: int, acoes: int) -> None:
+        self.con.execute(
+            "INSERT INTO disparos (quando, lotes, acoes) VALUES (?,?,?)",
+            (datetime.now().isoformat(), lotes, acoes),
+        )
+        self.con.commit()
+
+    def registrar_lote(self, token: str, acao_ids: list[str], dono: str) -> None:
+        agora = datetime.now().isoformat()
+        self.con.executemany(
+            "INSERT OR REPLACE INTO lotes (token, acao_id, dono, enviado_em)"
+            " VALUES (?,?,?,?)",
+            [(token, aid, dono, agora) for aid in acao_ids],
+        )
+        self.con.commit()
+
+    def acoes_do_lote(self, token: str) -> list[str]:
+        return [
+            linha["acao_id"] for linha in self.con.execute(
+                "SELECT acao_id FROM lotes WHERE token = ?", (token,)
+            )
+        ]
+
     # ------------------------------------------------- respostas por e-mail
 
     def resposta_ja_lida(self, msg_id: str) -> bool:
-        """O mesmo e-mail aparece em toda leitura da caixa; processa uma vez."""
+        """O mesmo e-mail aparece em toda leitura da caixa; processa uma vez.
+
+        Uma resposta a lote vira uma linha por ação, com chave
+        `<msg_id>#<acao_id>` — então a pergunta "já li este e-mail?" é
+        sobre o prefixo. Comparado por `substr`, e não por LIKE: um
+        Message-Id pode conter `_`, que o LIKE trataria como coringa e
+        faria duas respostas diferentes passarem por uma só.
+        """
         return self.con.execute(
-            "SELECT 1 FROM respostas_email WHERE msg_id = ?", (msg_id,)
+            "SELECT 1 FROM respostas_email"
+            " WHERE msg_id = ? OR substr(msg_id, 1, ?) = ?",
+            (msg_id, len(msg_id) + 1, f"{msg_id}#"),
         ).fetchone() is not None
 
     def gravar_resposta_email(
