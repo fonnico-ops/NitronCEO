@@ -1,0 +1,109 @@
+# O NitronCEO em produção, sem servidor.
+#
+# Roda no GitHub Actions porque o repositório já vive aqui e a matriz não
+# precisa de máquina ligada: são dois comandos por dia, de alguns minutos.
+# A memória mora no Supabase, então o runner pode ser descartável — o que
+# ele produz sobrevive a ele.
+#
+# CADÊNCIA: o cron dispara TODO dia útil às 17h de Brasília, e o comando
+# decide se hoje é dia de cobrar (a cada 2 dias). Deixar a cadência no
+# cron escorrega na virada do mês e ninguém percebe.
+#
+# O GitHub Actions usa UTC: 17h em Brasília (UTC-3) é 20h UTC.
+
+name: NitronCEO
+
+on:
+  schedule:
+    # 17:00 America/Sao_Paulo = 20:00 UTC · dias úteis
+    - cron: "0 20 * * 1-5"
+    # 07:30 America/Sao_Paulo = 10:30 UTC · lê as respostas da noite
+    - cron: "30 10 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      comando:
+        description: "O que rodar"
+        required: true
+        default: relatorio
+        type: choice
+        options: [relatorio, disparar, respostas, validar]
+      agora:
+        description: "Ignorar a janela de horário e a cadência"
+        type: boolean
+        default: false
+
+concurrency:
+  # Duas rodadas ao mesmo tempo cobrariam a mesma pessoa duas vezes.
+  group: nitronceo
+  cancel-in-progress: false
+
+jobs:
+  rodar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      TZ: America/Sao_Paulo
+      NITRONCEO_DATABASE_URL: ${{ secrets.NITRONCEO_DATABASE_URL }}
+      SANKHYA_URL: ${{ secrets.SANKHYA_URL }}
+      SANKHYA_USER: ${{ secrets.SANKHYA_USER }}
+      SANKHYA_PASSWORD: ${{ secrets.SANKHYA_PASSWORD }}
+      GHL_TOKEN: ${{ secrets.GHL_TOKEN }}
+      GHL_LOCATION_ID: ${{ secrets.GHL_LOCATION_ID }}
+      GHL_REMETENTE: ${{ vars.GHL_REMETENTE || 'renato.fonseca@nitron.com.br' }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Instalar
+        run: pip install -e ".[renato,producao]"
+
+      # Antes de qualquer envio: a matriz tem que estar sã. Um KPI com SQL
+      # quebrado viraria cobrança silenciosamente ausente.
+      - name: Validar a matriz
+        run: nitronceo validar
+
+      - name: Conferir as credenciais
+        run: |
+          faltando=""
+          for v in NITRONCEO_DATABASE_URL SANKHYA_URL SANKHYA_USER \
+                   SANKHYA_PASSWORD GHL_TOKEN GHL_LOCATION_ID; do
+            [ -z "${!v}" ] && faltando="$faltando $v"
+          done
+          if [ -n "$faltando" ]; then
+            echo "::error::Secrets faltando:$faltando"
+            echo "Configure em Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+          echo "Credenciais presentes."
+
+      # ------------------------------------------------------- agendado
+
+      - name: Disparar as cobranças (17h, a cada 2 dias)
+        if: github.event_name == 'schedule' && github.event.schedule == '0 20 * * 1-5'
+        run: nitronceo disparar
+
+      - name: Relatório de acompanhamento
+        if: github.event_name == 'schedule' && github.event.schedule == '0 20 * * 1-5'
+        run: nitronceo relatorio --enviar --com-renato
+
+      - name: Ler as respostas da noite
+        if: github.event_name == 'schedule' && github.event.schedule == '30 10 * * 1-5'
+        run: nitronceo respostas --canal ghl
+
+      # --------------------------------------------------------- manual
+
+      - name: Rodar o comando pedido
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          case "${{ inputs.comando }}" in
+            relatorio)  nitronceo relatorio --enviar --com-renato ;;
+            disparar)   nitronceo disparar ${{ inputs.agora && '--agora' || '' }} ;;
+            respostas)  nitronceo respostas --canal ghl ;;
+            validar)    nitronceo validar ;;
+          esac

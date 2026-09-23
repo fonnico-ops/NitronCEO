@@ -80,6 +80,23 @@ O porquê de cada sombra — e o que destrava cada uma — está em
 
 ---
 
+## Em produção
+
+Roda no **GitHub Actions**, sem servidor — a memória vive no Supabase,
+então o runner pode ser descartável.
+
+```
+17h00, dias úteis ──► disparar (a cada 2 dias) + relatório
+07h30, dias úteis ──► lê as respostas que chegaram
+```
+
+Passo a passo dos secrets e da primeira execução: **`docs/producao.md`**.
+
+Um pré-requisito que precisa ser conferido antes: **o Actions alcança o
+Sankhya?** O runner fica fora da rede da Nitron. Se o ERP não estiver
+exposto na internet, o mesmo código roda num servidor da empresa com um
+cron — só muda quem chama.
+
 ## Como rodar
 
 ```bash

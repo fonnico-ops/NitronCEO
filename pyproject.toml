@@ -11,6 +11,10 @@ dependencies = ["PyYAML>=6.0", "requests>=2.31"]
 #     pip install -e ".[renato]"
 [project.optional-dependencies]
 renato = ["anthropic>=1.0"]
+# Produção: a memória vive no Supabase. Sem isto o sistema cai no SQLite,
+# que é o certo para teste e o errado para produção — container morre e
+# leva a memória junto.
+producao = ["psycopg[binary]>=3.1"]
 
 [project.scripts]
 nitronceo = "nitronceo.cli:main"
