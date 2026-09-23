@@ -121,16 +121,19 @@ A cobrança sai de **`renato.fonseca@nitron.com.br`** — é o padrão do
 código, sobrescrevível por `GHL_REMETENTE`. O domínio já está verificado
 no GHL, então o envio é do sender do GHL e não passa pelo Outlook.
 
-Estado dos contatos em 23/09/2026 — 8 dos 10 papéis completos:
+Estado dos contatos em 23/09/2026 — **9 dos 10 papéis completos**: todas
+as áreas cobradas têm contato declarado.
 
-| Área | Contato | |
-|---|---|---|
-| Financeiro, Comercial, PCP, Logística (2), Produção/Qualidade (2), E-commerce, Projetos | declarados | ✅ |
-| CEO | `bnKA8BWCRaTeiBC2rjRs` é um **lead de campanha** (`lead-puro`, Nina Financeiro, anúncio de Instagram) | 🔴 |
-| Compras | o e-mail está no contato do cliente **COOPERCOTIA** | 🔴 |
+Só o CEO fica de fora, e por um motivo específico: o único contato com o
+e-mail dele, `bnKA8BWCRaTeiBC2rjRs`, é um **lead de campanha**
+(`lead-puro`, atribuído à Nina Financeiro, com campos de um anúncio de
+Instagram). Escalada de cobrança não entra numa conversa de campanha. As
+escaladas seguem por e-mail até existir um contato limpo para ele.
 
-Os dois de fora continuam sendo cobrados por e-mail — é o canal que cala,
-não a cobrança.
+Compras esteve nessa lista até o cadastro do cliente COOPERCOTIA ser
+corrigido: enquanto aquele contato segurava
+`cristiane.alves@nitron.com.br`, o GHL recusava criar o contato dela por
+e-mail duplicado.
 
 **O `contactId` é declarado à mão, nunca deduzido.** O GHL só envia para
 um contato, e a base da location Nitron mistura funcionário com cliente.

@@ -61,12 +61,11 @@ papeis:
     pessoas:
       - nome: Cristiane Alves
         email: cristiane.alves@nitron.com.br
-        # SEM ghl_contato de propósito. O único contato do GHL com este
-        # e-mail é fhnAHYNbq8Inlzb56DQL = "Cristiane ATLETICO CLUBE",
-        # cliente COOPERCOTIA cod 100526, tags sankhya-cliente /
-        # nina-conversa / nina-lead-rep, seguido pela Nina Financeiro.
-        # É erro de cadastro no CRM, não a Cristiane. Enquanto não houver
-        # um contato dela de verdade, ela é cobrada por e-mail.
+        # Até 23/09/2026 este e-mail estava preso no contato do cliente
+        # COOPERCOTIA ("Cristiane ATLETICO CLUBE"), o que impedia criar o
+        # contato dela — o GHL recusa e-mail duplicado. Corrigido o
+        # cadastro do cliente, o contato próprio entrou e é o único.
+        ghl_contato: Ua22DoxS9R7fHjNCDdHD
 
   diretor_comercial:
     nome: Comercial

@@ -210,15 +210,19 @@ def test_lead_de_campanha_tambem_e_bloqueado():
 def test_config_real_nao_declara_contato_poluido():
     """Trava de regressão sobre o pessoas.yaml de verdade.
 
-    O CEO e a Compras não podem ganhar `ghl_contato` sem que alguém tenha
-    resolvido a colisão — declarar qualquer um dos dois hoje mandaria
-    cobrança para a conversa de um lead ou de um cliente.
+    O CEO não pode ganhar `ghl_contato` enquanto o único contato com o
+    e-mail dele for um lead de campanha — declarar hoje mandaria escalada
+    de cobrança para dentro de uma conversa de anúncio.
+
+    Compras saiu desta lista em 23/09/2026: o cadastro do cliente
+    COOPERCOTIA foi corrigido, liberando o e-mail, e a Cristiane ganhou
+    contato próprio (Ua22Dox...).
     """
     from nitronceo.config import carregar
 
     cfg = carregar()
     assert cfg.papel("ceo").contatos_ghl == []
-    assert cfg.papel("compras").contatos_ghl == []
+    assert cfg.papel("compras").contatos_ghl == ["Ua22DoxS9R7fHjNCDdHD"]
     # e os resolvidos estão declarados
     assert cfg.papel("logistica").contatos_ghl == [
         "AEfhFMAW6yLwumd6TvWE", "FnMLfa8eSdSz8GmV9spD"
@@ -236,4 +240,4 @@ def test_config_real_nao_declara_contato_poluido():
         c for c, papel in cfg.papeis.items()
         if len(papel.contatos_ghl) != len(papel.pessoas)
     }
-    assert incompletos == {"ceo", "compras"}
+    assert incompletos == {"ceo"}
