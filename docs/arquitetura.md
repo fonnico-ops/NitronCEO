@@ -76,9 +76,24 @@ programa. Um limiar dentro de `.py` é um limiar que ninguém revisa.
 armadilha conhecida. É onde a auditoria do número começa, e comentário longo
 dentro de YAML não sobrevive.
 
-**Por que SQLite.** O volume é de dezenas de linhas por dia. Trocar por
-Postgres/Supabase é implementar a mesma interface de `Repositorio`; a decisão
-pode esperar até existir mais de um consumidor.
+**Onde a memória mora.** Postgres (Supabase), schema `nitronceo` do
+projeto `integracao-crm-sankhya` — o mesmo ecossistema do CRM, da Nina e da
+integração do Sankhya, em schema próprio para não se misturar ao `public`,
+que já carrega 180 tabelas.
+
+`repositorio.abrir()` escolhe pelo ambiente: com `NITRONCEO_DATABASE_URL`,
+Postgres; sem ela, SQLite. A escolha é por ambiente e não por argumento
+porque quem chama — motor, CLI, leitor de respostas — não deve ter opinião
+sobre onde a memória mora.
+
+O SQLite não foi descartado: é o dos testes, que assim rodam sem rede e sem
+credencial. A troca aconteceu porque o SQLite de produção vivia dentro do
+container que roda a matriz, e container é efêmero. Cobrança que perde a
+memória vira cobrança repetida.
+
+As tabelas têm RLS ligado e **nenhuma policy** para `anon`/`authenticated`:
+cobrança interna não é dado de aplicação pública, e o acesso é do servidor
+que roda a matriz, com `service_role`.
 
 **Por que métrica nula não é verde.** Consulta que volta vazia, coluna ausente
 ou valor nulo viram `erro` no sinal, nunca "está tudo bem". O alarme que não
@@ -95,6 +110,7 @@ contra um dia de verdade.
 |---|---|---|
 | Sankhya | leitura (`DbExplorerSP`) | `SANKHYA_URL`, `SANKHYA_USER`, `SANKHYA_PASSWORD` |
 | Microsoft Graph | Teams + Outlook | `MS_TENANT_ID`, `MS_CLIENT_ID`, `MS_CLIENT_SECRET`, `MS_REMETENTE` |
+| Supabase | memória (sinais, ações, cobranças, respostas) | `NITRONCEO_DATABASE_URL` |
 | Claude API | Renato (análise e redação) | `ANTHROPIC_API_KEY` |
 | Go High Level | canal de e-mail alternativo | `GHL_TOKEN`, `GHL_LOCATION_ID`, `GHL_REMETENTE`, `GHL_TAG_INTERNA` |
 

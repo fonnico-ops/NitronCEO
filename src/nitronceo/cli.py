@@ -35,7 +35,7 @@ from .relatorio import montar
 from .notificadores import Console, EmailOutlook, GoHighLevel, Teams
 from .notificadores.graph import _Graph
 from .respostas import LeitorDeCaixa, LeitorDoGHL
-from .repositorio import Repositorio
+from .repositorio import abrir
 from .sankhya import FonteArquivo, SankhyaREST, montar_sql
 
 
@@ -63,7 +63,7 @@ def _canais_pedidos(args) -> tuple[str, ...]:
 
 def _montar(args) -> tuple[Motor, Repositorio]:
     cfg = carregar()
-    repo = Repositorio(args.banco)
+    repo = abrir(args.banco)
 
     escolhidos = _canais_pedidos(args)
 
@@ -126,7 +126,7 @@ def cmd_cobrar(args) -> int:
 
 def cmd_pendentes(args) -> int:
     cfg = carregar()
-    repo = Repositorio(args.banco)
+    repo = abrir(args.banco)
     try:
         abertas = repo.acoes_em_aberto()
         if not abertas:
@@ -145,7 +145,7 @@ def cmd_pendentes(args) -> int:
 
 
 def cmd_responder(args) -> int:
-    repo = Repositorio(args.banco)
+    repo = abrir(args.banco)
     try:
         if repo.registrar_resposta(args.acao_id, args.texto):
             print(f"Resposta registrada. Cobrança de {args.acao_id} encerrada.")
@@ -203,7 +203,7 @@ def cmd_importar(args) -> int:
     import json
     from datetime import datetime
 
-    repo = Repositorio(args.banco)
+    repo = abrir(args.banco)
     try:
         bruto = json.loads(Path(args.arquivo).read_text(encoding="utf-8"))
         respostas = bruto.get("documents", bruto) if isinstance(bruto, dict) else bruto
@@ -291,7 +291,7 @@ def cmd_respostas(args) -> int:
     fica na caixa de entrada e a ação segue aberta subindo a escada. O elo
     é o token `[NTR-xxxxxxxx]` que vai no assunto e sobrevive ao `RE:`.
     """
-    repo = Repositorio(args.banco)
+    repo = abrir(args.banco)
     try:
         if args.canal == "ghl":
             lidas = LeitorDoGHL(GoHighLevel(), repo).ler(dias=args.dias)

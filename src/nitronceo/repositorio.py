@@ -381,3 +381,25 @@ def _para_acao(linha: sqlite3.Row) -> Acao:
         resposta=linha["resposta"],
         contexto=json.loads(linha["contexto"]),
     )
+
+
+def abrir(caminho: Path | str = "dados/nitronceo.db"):
+    """O repositório certo para o ambiente.
+
+    Com `NITRONCEO_DATABASE_URL` no ambiente, usa Postgres (Supabase) —
+    é o de produção, e é o único que sobrevive ao container morrer. Sem
+    ela, SQLite: os testes rodam sem rede e sem credencial, e quem está
+    desenvolvendo não precisa de banco nenhum para começar.
+
+    A escolha é por ambiente, e não por argumento, porque quem chama
+    (motor, CLI, leitor de respostas) não deve ter opinião sobre onde a
+    memória mora.
+    """
+    import os
+
+    dsn = os.getenv("NITRONCEO_DATABASE_URL")
+    if dsn:
+        from .repositorio_pg import RepositorioPG
+
+        return RepositorioPG(dsn)
+    return Repositorio(caminho)
