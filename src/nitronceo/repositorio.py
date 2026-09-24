@@ -204,6 +204,13 @@ class Repositorio:
             )
         self.con.commit()
 
+    def atualizar_prazo(self, acao_id: str, prazo: datetime) -> None:
+        self.con.execute(
+            "UPDATE acoes SET prazo = ? WHERE id = ?",
+            (prazo.isoformat(), acao_id),
+        )
+        self.con.commit()
+
     def registrar_resposta(
         self, acao_id: str, texto: str, quando: datetime | None = None
     ) -> bool:

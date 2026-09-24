@@ -1,11 +1,14 @@
 import io
 import sys
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
+from nitronceo.acoes import Acao  # noqa: E402
+from nitronceo.avaliador import Nivel  # noqa: E402
 from nitronceo.config import RAIZ, carregar  # noqa: E402
-from nitronceo.motor import Motor, pulso  # noqa: E402
+from nitronceo.motor import Motor, pulso, renovar_prazo  # noqa: E402
 from nitronceo.notificadores import Console  # noqa: E402
 from nitronceo.repositorio import Repositorio  # noqa: E402
 from nitronceo.sankhya import FonteArquivo  # noqa: E402
@@ -183,4 +186,59 @@ def test_envio_que_falha_nao_derruba_as_outras_cobrancas(tmp_path):
 
     texto = pulso(rodada, motor.cfg)
     assert "NÃO chegaram no destinatário" in texto
+    repo.fechar()
+
+
+# --------------------------------------------------------------- prazo na saída
+
+def _acao_com_prazo(criada: datetime, prazo: datetime) -> Acao:
+    return Acao(
+        id="aaaaaaaaaaaa", kpi_id="faturamento_ritmo", titulo="t", passos=["p"],
+        dono="logistica", nivel=Nivel.CRITICO, valor=1.0, unidade="un",
+        criada_em=criada, prazo=prazo,
+    )
+
+
+def test_renovar_prazo_nao_mexe_no_que_ainda_esta_de_pe():
+    agora = datetime(2026, 9, 24, 14, 0)
+    acao = _acao_com_prazo(datetime(2026, 9, 24, 13, 0),
+                           datetime(2026, 9, 24, 17, 0))
+    assert renovar_prazo(acao, agora) == datetime(2026, 9, 24, 17, 0)
+
+
+def test_renovar_prazo_conta_a_janela_da_entrega():
+    """Janela de 2h apurada às 8h, entregue às 14h: vence às 16h, não às 10h."""
+    acao = _acao_com_prazo(datetime(2026, 9, 24, 8, 0),
+                           datetime(2026, 9, 24, 10, 0))
+    novo = renovar_prazo(acao, datetime(2026, 9, 24, 14, 0))
+    assert novo == datetime(2026, 9, 24, 16, 0)
+
+
+def test_renovar_prazo_nao_vence_de_madrugada():
+    """Entregue às 19h22, 2h de janela: vence às 10h do dia seguinte."""
+    acao = _acao_com_prazo(datetime(2026, 9, 24, 17, 0),
+                           datetime(2026, 9, 24, 19, 0))
+    novo = renovar_prazo(acao, datetime(2026, 9, 24, 19, 22))
+    assert novo == datetime(2026, 9, 25, 10, 0)
+
+
+def test_renovar_prazo_pula_o_fim_de_semana():
+    """Sexta 19h com 2h de janela não vence sábado: vence segunda."""
+    acao = _acao_com_prazo(datetime(2026, 9, 25, 17, 0),
+                           datetime(2026, 9, 25, 19, 0))
+    novo = renovar_prazo(acao, datetime(2026, 9, 25, 19, 30))
+    assert novo == datetime(2026, 9, 28, 10, 0)
+
+
+def test_disparar_agrupado_grava_o_prazo_renovado(tmp_path):
+    """Não basta renovar na memória: a escada de cobrança lê do banco."""
+    m, repo, _ = _motor(tmp_path)
+    acao = _acao_com_prazo(datetime(2026, 9, 23, 17, 0),
+                           datetime(2026, 9, 23, 19, 0))
+    repo.salvar_acao(acao)
+    m.disparar_agrupado([acao])
+
+    gravada = repo.buscar_acao(acao.id)
+    assert gravada is not None
+    assert gravada.prazo > datetime.now()
     repo.fechar()

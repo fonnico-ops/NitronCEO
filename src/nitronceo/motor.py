@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import os
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, time, timedelta
 from pathlib import Path
 from typing import Any, Protocol
 
@@ -32,6 +32,43 @@ from .sankhya import Fonte, FonteArquivo, montar_sql
 PAINEL = os.getenv(
     "NITRONCEO_PAINEL", "https://claude.ai/artifact/3aE3YSU2uJY5QW4PHDfsqz"
 )
+
+# Janela em que uma cobrança pode vencer. Prazo que cai às 2h da manhã não
+# é prazo: é uma desculpa pronta para quem não respondeu.
+EXPEDIENTE = (time(8, 0), time(18, 0))
+
+
+def renovar_prazo(acao: Acao, agora: datetime | None = None) -> datetime:
+    """O prazo conta de quando a cobrança SAI, não de quando foi apurada.
+
+    A ação nasce na rodada de medição e só é entregue no disparo. Entre um
+    e outro pode passar um dia — e em 24/09/2026 passaram duas horas a mais
+    do que o previsto, o suficiente para dois pontos de SLA de 2h saírem com
+    o prazo `24/09 19:00` estampado num e-mail entregue às 19:22. Cobrança
+    com prazo vencido não cobra: pede desculpa, e ensina que o prazo desta
+    casa é decorativo.
+
+    Devolve o prazo que vale de fato: a janela original (`prazo - criada_em`)
+    contada de agora, e, se isso cair fora do expediente, o mesmo tanto
+    contado da abertura do próximo dia útil.
+    """
+    agora = agora or datetime.now()
+    if acao.prazo > agora:
+        return acao.prazo
+
+    janela = acao.prazo - acao.criada_em
+    prazo = agora + janela
+    abre, fecha = EXPEDIENTE
+    if prazo.time() <= fecha and prazo.weekday() < 5 and prazo.time() >= abre:
+        return prazo
+
+    dia = prazo.date()
+    if prazo.time() > fecha:
+        dia += timedelta(days=1)
+    while dia.weekday() >= 5:
+        dia += timedelta(days=1)
+    return datetime.combine(dia, abre) + janela
+
 
 class Redator(Protocol):
     """Quem sabe escrever a cobrança melhor que o template.
@@ -150,6 +187,15 @@ class Motor:
         que chegam juntas. Cinco e-mails no mesmo minuto não são cinco
         cobranças; são ruído, e ruído ensina a filtrar o remetente.
         """
+        # O prazo vale da entrega, não da apuração: quem recebe às 19h22
+        # uma cobrança que venceu às 19h não tem o que responder.
+        agora = datetime.now()
+        for acao in acoes:
+            prazo = renovar_prazo(acao, agora)
+            if prazo != acao.prazo:
+                acao.prazo = prazo
+                self.repo.atualizar_prazo(acao.id, prazo)
+
         lotes = agrupar(acoes, self.cfg, PAINEL)
         for lote in lotes:
             msg = Mensagem(

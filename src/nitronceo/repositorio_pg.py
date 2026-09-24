@@ -159,6 +159,11 @@ class RepositorioPG:
                 (estado.value, escalonamentos, acao_id),
             )
 
+    def atualizar_prazo(self, acao_id: str, prazo: datetime) -> None:
+        self._exec(
+            "UPDATE acoes SET prazo = %s WHERE id = %s", (prazo, acao_id)
+        )
+
     def registrar_resposta(
         self, acao_id: str, texto: str, quando: datetime | None = None
     ) -> bool:
