@@ -134,9 +134,17 @@ nitronceo ghl-contatos          # resolve os contatos e aponta as colisões
 nitronceo rodar --canais ghl
 ```
 
-A cobrança sai de **`renato.fonseca@nitron.com.br`** — é o padrão do
-código, sobrescrevível por `GHL_REMETENTE`. O domínio já está verificado
-no GHL, então o envio é do sender do GHL e não passa pelo Outlook.
+A cobrança sai como **`Nitron <marketing@nitron.com.br>`**, pelo
+subdomínio `email.nitron.com.br` do LeadConnector — envelope e DKIM
+alinhados, sem conflito com o Microsoft 365 do domínio principal.
+
+O `GHL_REMETENTE` existe e é passado como `emailFrom`, mas **o GHL
+ignora**: em 23/09 passamos `renato.fonseca@` e o e-mail saiu do
+`marketing@` mesmo. Só um endereço autorizado na location vale.
+
+Consequência conhecida e aceita: é o mesmo remetente da régua de cobrança
+de cliente. Quem recebe vê "Nitron <marketing@>" e pode classificar como
+campanha antes de ler.
 
 Estado dos contatos em 23/09/2026 — **9 dos 10 papéis completos**: todas
 as áreas cobradas têm contato declarado.

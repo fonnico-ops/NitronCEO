@@ -77,8 +77,21 @@ class GoHighLevel:
     ) -> None:
         self.token = token or os.environ["GHL_TOKEN"]
         self.location = location or os.environ["GHL_LOCATION_ID"]
-        # Quem assina. O padrão é o CEO: a cobrança tem o peso de vir
-        # dele, e o domínio nitron.com.br já está verificado no GHL.
+        # Quem assina — quando o GHL deixa.
+        #
+        # Medido em 23/09/2026: o `emailFrom` é ACEITO pela API e depois
+        # IGNORADO no envio. Passamos renato.fonseca@nitron.com.br e o
+        # e-mail saiu como `Nitron <marketing@nitron.com.br>`, que é o
+        # remetente configurado na location. O envelope e o DKIM saem por
+        # `email.nitron.com.br`, subdomínio próprio do LeadConnector —
+        # então a entrega é boa e não há conflito com o Microsoft 365 do
+        # domínio principal.
+        #
+        # Fica declarado porque o dia em que a location ganhar outro
+        # endereço de envio autorizado, este valor passa a valer sozinho.
+        # O CEO decidiu em 24/09 que sair do marketing@ está bom por ora,
+        # ciente de que é o mesmo remetente da régua de cobrança de
+        # cliente.
         self.remetente = remetente or os.getenv(
             "GHL_REMETENTE", "renato.fonseca@nitron.com.br"
         )
