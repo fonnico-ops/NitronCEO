@@ -144,3 +144,85 @@ def test_disparo_registra_o_lote_para_a_resposta_achar_as_acoes(tmp_path):
     # uma mensagem por dono, não uma por cobrança
     assert saida.getvalue().count("   para:") == len(lotes)
     repo.fechar()
+
+
+# ------------------------------------------------------- corpo com detalhe
+
+def _acao_rica(**extra):
+    base = dict(
+        id="7b13ca5a89d0", kpi_id="liberacao_comercial",
+        titulo="Pedido parado há 180 dias sem aprovação nem recusa",
+        passos=["Libere ou recuse."], dono="diretor_comercial",
+        nivel=Nivel.CRITICO, valor=180, unidade="contagem",
+        criada_em=datetime(2026, 9, 24, 8, 0),
+        prazo=datetime(2026, 9, 26, 17, 0),
+        contexto={
+            "PEDIDOS_TRAVADOS": 87, "VLR_TRAVADO": 505694.43,
+            "DIAS_MAX": 180, "DIAS_MEDIO": 47.6, "PARADOS_MAIS_30D": 52,
+            "LISTA": "KALUNGA — R$ 34174 (35d, Atraso) · MATOS — R$ 2085 (32d)",
+        },
+    )
+    base.update(extra)
+    return Acao(**base)
+
+
+def _corpo(acao):
+    cfg = carregar()
+    return montar(cfg.papel(acao.dono), [acao], cfg, "https://painel",
+                  datetime(2026, 9, 24, 17, 0)).corpo_md
+
+
+def test_corpo_nao_vaza_nome_de_coluna_nem_float_cru():
+    """O que saiu em 24/09/2026 foi `VLR_TRAVADO: 505694.43`.
+
+    Nome de coluna e float cru são planilha, não cobrança: quem abre o
+    e-mail não converte 505694.43 em meio milhão na primeira passada, e a
+    primeira passada é a única que a maioria dá.
+    """
+    corpo = _corpo(_acao_rica())
+    assert "VLR_TRAVADO" not in corpo
+    assert "505694.43" not in corpo
+    assert "R$ 505.694,43" in corpo
+
+
+def test_corpo_traz_o_resumo_da_matriz():
+    corpo = _corpo(_acao_rica())
+    assert "87 pedidos" in corpo
+    assert "52 deles já passaram de 30 dias" in corpo
+
+
+def test_lista_do_sql_vira_bullets():
+    corpo = _corpo(_acao_rica())
+    assert "**Onde está concentrado:**" in corpo
+    assert "- KALUNGA — R$ 34.174 (35d, Atraso)" in corpo
+    assert "- MATOS — R$ 2.085 (32d)" in corpo
+
+
+def test_lista_nao_e_quebrada_por_virgula():
+    """`(35d, Atraso)` é um item só — quebrar na vírgula o partiria ao meio."""
+    corpo = _corpo(_acao_rica())
+    assert "- Atraso)" not in corpo
+
+
+def test_sem_lista_o_corpo_segue_de_pe():
+    acao = _acao_rica()
+    acao.contexto.pop("LISTA")
+    corpo = _corpo(acao)
+    assert "Onde está concentrado" not in corpo
+    assert "R$ 505.694,43" in corpo
+
+
+def test_resumo_generico_nao_abre_com_denominador():
+    """Sem molde na matriz, a frase não pode começar pela boa notícia.
+
+    Num ponto sobre OS abertas, `FECHADAS_365D` é o universo, não o
+    problema: abrir com ele contaria o que deu certo numa cobrança.
+    """
+    from nitronceo.lote import _resumo
+    acao = _acao_rica(kpi_id="x", contexto={
+        "FECHADAS_365D": 1804, "ABERTAS": 503, "COM_EQPTO_PARADO": 330,
+    })
+    kpi = {"metrica": "ABERTAS_VELHAS", "acao": {}}
+    resumo = _resumo(acao, kpi)
+    assert resumo.startswith("**503 abertas**")
+    assert "1.804" in resumo

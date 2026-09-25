@@ -50,6 +50,10 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "Ritmo de faturamento em {valor}% da meta diária"
+    resumo: >-
+      {REALIZADO_MTD} faturados em {UTEIS_DECORRIDOS} dos {UTEIS_TOTAIS} dias úteis — ritmo
+      de {RITMO_DIA_UTIL} por dia contra meta de {META_DIA}. No passo de hoje o mês fecha em
+      {PROJECAO_FECHAMENTO}, e a meta é {META_MES}.
     passos:
       - "Quanto sai hoje e quanto fica, em R$. Não em número de cargas."
       - "Se a carga não fecha, diga o que falta: doca, veículo, separação ou janela do cliente."
@@ -94,6 +98,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "Entrada de pedidos em {valor}% da média de 90 dias"
+    resumo: >-
+      {VLR_MTD} entraram no mês em {QTD_MTD} pedidos — {VLR_DIA_ATUAL} por dia, contra
+      {VLR_DIA_MEDIA_90D} na média dos últimos 90 dias.
     passos:
       - "Liste os 5 clientes que pararam de comprar vs. o mesmo período anterior."
       - "Diga o que já foi feito de contato e o que falta."
@@ -120,6 +127,8 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "{valor} representantes abaixo da meta"
+    resumo: >-
+      {QTD_ZERADOS} representantes não venderam nada no período, de {REPRESENTANTES} ativos.
     passos:
       - "Para cada nome da lista: plano de recuperação ou data de desligamento."
       - "Não aceito 'vou falar com ele' — quero o que foi combinado e até quando."
@@ -154,6 +163,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams] }
   acao:
     titulo: "Canal {rotulo} em {valor}% da própria média"
+    resumo: >-
+      {VLR_SEM_CANAL} saíram sem canal identificado — {PCT_SEM_CANAL} de tudo que foi
+      vendido.
     passos:
       - "Diga se é problema de demanda, de preço ou de cobertura."
       - "Se for preço, traga a proposta — não a reclamação."
@@ -185,6 +197,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "Só {valor} ordens de carga montadas ontem"
+    resumo: >-
+      {FECHADAS_ONTEM} ordens fechadas ontem contra {MEDIA_7D} na média dos 7 dias. Ficaram
+      {ABERTAS_ATRASADAS} ordens abertas e atrasadas.
     passos:
       - "Diga o que travou: doca, veículo, separação ou falta de pedido com estoque."
       - "Quantos pedidos ficaram fora da carga e por quê."
@@ -212,6 +227,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "{valor}% das entregas agendadas foram empurradas"
+    resumo: >-
+      {REAGENDADOS} de {AGENDAMENTOS} agendamentos foram empurrados: {RECUSAS} por recusa do
+      cliente e {NAO_ATENDE} por ninguém atender.
     passos:
       - "Separe o que foi pedido do cliente do que foi falha nossa de janela."
       - "Para as nossas: o que muda no roteiro a partir de amanhã."
@@ -243,6 +261,8 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "Devoluções em {valor}% do faturamento"
+    resumo: >-
+      {VLR_DEVOLVIDO} voltaram em {NOTAS_DEVOLVIDAS} notas, sobre {VLR_FATURADO} faturados.
     passos:
       - "Top 3 clientes da janela e o motivo de cada devolução."
       - "Separe erro nosso (produto trocado, quantidade errada, nota errada) de recusa do cliente."
@@ -280,6 +300,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams] }
   acao:
     titulo: "{valor} notas devolvidas ainda sem refaturamento"
+    resumo: >-
+      {QTD_REFATURADAS} devoluções já voltaram como refaturamento, somando {VLR_REFATURADO}.
+      Outras {QTD_COM_DEVOLUCAO_VINCULADA} têm devolução vinculada e não fecharam.
     passos:
       - "Há quantos dias cada uma está parada e o que falta para reexpedir."
       - "Se a mercadoria não pode voltar ao estoque, diga o que será feito com ela."
@@ -315,6 +338,10 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "{valor} injetoras paradas há mais de 1 hora"
+    resumo: >-
+      {PARADAS_ABERTAS} paradas abertas em {MONITORADAS} injetoras monitoradas —
+      {NAO_PROGRAMADAS} não programadas, {SEM_MOTIVO} sem motivo apontado e {REFEICAO_LONGA}
+      em refeição que passou da hora.
     passos:
       - "A lista já traz o motivo de cada uma. Diga a previsão de religar."
       - "As sem motivo apontado: quem estava na máquina e o que aconteceu?"
@@ -350,6 +377,11 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "{valor}% das trocas de molde estouraram os 40 minutos"
+    resumo: >-
+      {ACIMA_PADRAO} de {SETUPS_VALIDOS} trocas válidas passaram dos {PADRAO_MIN} de padrão.
+      Mediana de {MEDIANA_MIN} e média de {MEDIA_MIN} — {HORAS_PERDIDAS} de injetora
+      perdidas na janela. {APONTAMENTO_SUSPEITO} apontamentos acima de 24h ficaram de fora
+      da conta.
     passos:
       - "Quais máquinas concentram o estouro — a lista traz a mediana de cada uma."
       - "Falta ferramenta, molde pré-aquecido ou gente treinada? Escolha uma."
@@ -386,6 +418,10 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "R$ {valor} de carteira parada por falta de estoque"
+    resumo: >-
+      {ITENS_SEM_SALDO} itens da carteira sem saldo nenhum e {ITENS_SALDO_PARCIAL} com saldo
+      parcial, de {ITENS_CARTEIRA} itens vendidos. Há ainda {ENDERECOS_NEGATIVOS} endereços
+      com saldo negativo.
     passos:
       - "Dos itens da lista: quais entram na programação desta semana."
       - "Quais dependem de MP e qual a data de chegada."
@@ -428,6 +464,10 @@ kpis:
   notificar: { verde: [], amarelo: [teams, email], vermelho: [teams, email] }
   acao:
     titulo: "Gap de caixa de R$ {valor} em 7 dias"
+    resumo: >-
+      Em 7 dias: {RECEBER_D0_D7} a receber contra {PAGAR_D0_D7} a pagar. De D+8 a D+30:
+      {RECEBER_D8_D30} contra {PAGAR_D8_D30}, saldo de {SALDO_D8_D30}. Somando os 30 dias,
+      {SALDO_D0_D30}.
     passos:
       - "Qual dia estoura e de quanto é o buraco naquele dia."
       - "O que dá para antecipar de recebível e a que custo."
@@ -460,6 +500,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "R$ {valor} vencidos a receber"
+    resumo: >-
+      {TITULOS} títulos vencidos — {VLR_ATE_30D} vencidos há até 30 dias e {VLR_ACIMA_90D}
+      há mais de 90, que é o que dificilmente volta sozinho.
     passos:
       - "Top 10 devedores e o estágio de cada cobrança."
       - "O que vai para protesto/jurídico esta semana."
@@ -489,6 +532,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "Pedido parado há {valor} dias esperando crédito"
+    resumo: >-
+      {VLR_TRAVADO} travados em {PEDIDOS_TRAVADOS} pedidos, {DIAS_MEDIO} parados em média.
+      {PARADOS_MAIS_7D} deles já passaram de 7 dias.
     passos:
       - "Para cada nome da lista: libera, recusa ou pede garantia. Escolha uma."
       - "Se o cliente não tem limite, diga qual limite resolveria e quem aprova."
@@ -519,6 +565,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "Pedido parado há {valor} dias sem aprovação nem recusa"
+    resumo: >-
+      {VLR_TRAVADO} travados em {PEDIDOS_TRAVADOS} pedidos, {DIAS_MEDIO} parados em média.
+      {PARADOS_MAIS_30D} deles já passaram de 30 dias.
     passos:
       - "Libere ou recuse. Deixar envelhecer não é a terceira opção."
       - "Os de PIX aguardando recebimento: o dinheiro entrou ou não entrou?"
@@ -554,6 +603,10 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "{valor} produtos com menos de 15 dias de cobertura"
+    resumo: >-
+      {COB_MENOR_7D} produtos não chegam a 7 dias de cobertura e {SALDO_NAO_POSITIVO} já
+      estão sem saldo, de {PRODUTOS_COM_GIRO} com giro. {VLR_MES_EM_RISCO} de venda mensal
+      dependem desses itens.
     passos:
       - "Quantos destes já estão na programação da semana."
       - "Dos que não estão: falta molde, máquina ou matéria-prima?"
@@ -585,6 +638,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "R$ {valor} de venda mensal em itens de alto giro prestes a faltar"
+    resumo: >-
+      {ITENS_PARA_PROGRAMAR} itens precisam entrar na programação, {ITENS_SEM_SALDO} já
+      estão zerados.
     passos:
       - "Ordem de produção para os 5 primeiros da lista, com data."
       - "Se não cabe na capacidade da semana, diga o que sai para eles entrarem."
@@ -617,6 +673,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams, email], vermelho: [teams, email] }
   acao:
     titulo: "{valor} grandes devedores continuam comprando"
+    resumo: >-
+      {VLR_CONCENTRADO} concentrados em {DEVEDORES_ACIMA_PISO} devedores acima do piso, com
+      atraso chegando a {PIOR_ATRASO}. Desses, seguimos faturando {VLR_FATURADO_A_DEVEDOR}.
     passos:
       - "Para cada um: por que o crédito não está bloqueado?"
       - "Se a venda é estratégica e a decisão foi consciente, quem decidiu e até quando vale."
@@ -651,6 +710,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "R$ {valor} de gasto de compra acima do padrão"
+    resumo: >-
+      {NATUREZAS_ESTOURADAS} naturezas de compra estouraram o padrão, a pior delas em
+      {MAIOR_ESTOURO_PCT} do que costuma gastar.
     passos:
       - "Para cada natureza da lista: o estouro foi decisão ou descontrole?"
       - "O que foi decisão (compra antecipada, lote maior, preço travado): quem decidiu e qual o ganho."
@@ -694,6 +756,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "R$ {valor} de despesa acima do padrão fora de Compras"
+    resumo: >-
+      {NATUREZAS_ESTOURADAS} naturezas de despesa estouraram o padrão fora de Compras, a
+      pior em {MAIOR_ESTOURO_PCT} do habitual.
     passos:
       - "Para cada natureza da lista: o estouro foi decisão ou descontrole?"
       - "Empréstimos e dividendos: foi movimento planejado? Qual o efeito no caixa dos próximos 90 dias?"
@@ -726,6 +791,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams] }
   acao:
     titulo: "Razão despesa/faturamento em {valor}% do padrão de 12 meses"
+    resumo: >-
+      {DESPESA_MES} de despesa sobre {FATURAMENTO_MES} faturados — razão de {PCT_MES},
+      contra {PCT_MEDIA_12M} na média de 12 meses.
     passos:
       - "Qual natureza puxou a razão para cima."
       - "É custo variável acompanhando a venda, ou fixo crescendo sozinho?"
@@ -769,6 +837,10 @@ kpis:
   notificar: { verde: [], amarelo: [teams, email], vermelho: [teams, email] }
   acao:
     titulo: "NTR Log emitiu apenas {valor}% do frete que a Nitron pagou"
+    resumo: >-
+      A Nitron pagou {FRETE_PAGO_MES} de frete em {TITULOS_FRETE} títulos e a NTR Log emitiu
+      {EMITIDO_NTRLOG} em {NOTAS_EMITIDAS} notas. Faltam {GAP_EMISSAO}, e {TITULOS_SEM_NOTA}
+      títulos não têm nota nenhuma.
     passos:
       - "As notas existem e não foram importadas para o ERP, ou não foram emitidas?"
       - "Se não foram importadas: traga a conciliação do mês, frete a frete."
@@ -811,6 +883,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "Teak Brazil há {valor} dias sem emitir nota"
+    resumo: >-
+      {NOTAS_JANELA} notas na janela, somando {VLR_JANELA} — a média dos últimos 6 meses é
+      {MEDIA_MES_6M} por mês.
     passos:
       - "Houve operação no período? Se houve, por que não faturou?"
       - "Se não houve, isso era esperado ou a operação parou?"
@@ -848,6 +923,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "R$ {valor} a menos nos produtos que já tinham performance"
+    resumo: >-
+      {PRODUTOS_EM_QUEDA} produtos caíram, {QUEDA_ACIMA_50PCT} deles perderam mais da metade
+      e {PARARAM_DE_VENDER} pararam de vender de vez.
     passos:
       - "Dos 5 primeiros: cliente perdido, concorrente ou falta de estoque?"
       - "Se foi falta de estoque, cruze com o PCP antes de me responder."
@@ -882,6 +960,10 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "R$ {valor} agendados acima da capacidade de carga"
+    resumo: >-
+      {VLR_AGENDADO_TOTAL} agendados em {DIAS_AGENDADOS} dias: {DIAS_ESTOURADOS} passam da
+      capacidade e {DIAS_OCIOSOS} estão ociosos, com {VLR_OCIOSO} de capacidade sem uso. Há
+      ainda {ORDENS_ABANDONADAS} ordens de carga abandonadas.
     passos:
       - "Puxe carga das datas que estouram para os dias ociosos da mesma semana."
       - "Os dias ociosos estão na lista — não é falta de carga, é distribuição."
@@ -923,6 +1005,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "Só {valor} dias de meta na carteira atendível"
+    resumo: >-
+      {VLR_CARTEIRA} na carteira em {PEDIDOS_CARTEIRA} pedidos — {VLR_COM_ESTOQUE} já têm
+      estoque para sair, {VLR_SEM_ESTOQUE} dependem de produção.
     passos:
       - "Quanto entra de pedido novo esta semana, por representante."
       - "O que está sem estoque é do PCP — a coluna separa os dois."
@@ -964,6 +1049,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "{valor} horas de injetora paradas por molde em 30 dias"
+    resumo: >-
+      {PARADAS} paradas por molde em {MAQUINAS_AFETADAS} injetoras, {MEDIA_MIN} em média
+      cada. {ABERTAS_AGORA} ainda estão abertas agora.
     passos:
       - "Quais moldes concentram a parada — a lista traz por máquina."
       - "É manutenção preventiva que não foi feita, ou molde no fim da vida?"
@@ -1003,6 +1091,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "{valor}% das paradas sem motivo apontado"
+    resumo: >-
+      {SEM_MOTIVO} de {PARADAS} paradas não têm motivo apontado — {HORAS_SEM_MOTIVO} cegas
+      dentro de {HORAS_PARADAS_TOTAL} de parada total.
     passos:
       - "Qual turno e qual máquina concentram a falta de apontamento."
       - "É falta de treino, tela ruim ou motivo que não existe no cadastro?"
@@ -1043,6 +1134,10 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "R$ {valor} vendidos em 180 dias de produtos que estão suspensos"
+    resumo: >-
+      {COM_VENDA_180D} produtos suspensos venderam nos últimos 180 dias e
+      {COM_PEDIDO_ABERTO} têm pedido aberto agora, somando {VLR_NA_CARTEIRA} na carteira.
+      São {CANDIDATOS_RELEVANTES} candidatos à reativação, de {SUSPENSOS_TOTAL} suspensos.
     passos:
       - "Publique aqui na resposta a lista de reativação, com o que entra e a data."
       - "Dos 15 primeiros da lista: quais voltam, quais ficam suspensos e por quê."
@@ -1080,6 +1175,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "R$ {valor} de injeção terceirizada no trimestre"
+    resumo: >-
+      {VLR_12M} em 12 meses com {FORNECEDORES} terceiros — no mesmo trimestre do ano passado
+      foram {VLR_TRIM_ANO_PASSADO}.
     passos:
       - "Publique aqui na resposta quais moldes estão em cada terceiro."
       - "Para os da Tanamu, que é 73% do gasto: quais voltam e em que ordem?"
@@ -1122,6 +1220,10 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "R$ {valor} parados em produto inativo"
+    resumo: >-
+      {PRODUTOS} produtos e {QTD_TOTAL} peças paradas. {VLR_SEM_MERCADO} não vendem há 180
+      dias; {VLR_LIQUIDAVEL} ainda têm saída. {SEM_CUSTO_CADASTRADO} nem custo cadastrado
+      têm.
     passos:
       - "Os que AINDA VENDEM: qual o desconto e para quem, com data de campanha."
       - "Os SEM VENDA em 180 dias: liquidação, doação ou baixa? Cada um precisa de destino."
@@ -1160,6 +1262,10 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "Ciclo mediano em {valor}% do padrão de cadastro"
+    resumo: >-
+      {ACIMA_25PCT} apontamentos rodaram mais de 25% acima do ciclo de cadastro e
+      {ACIMA_50PCT} mais de 50%, em {APONTAMENTOS} medidos. {MAQUINAS_ACIMA_140} das
+      {MAQUINAS} passam de 140%.
     passos:
       - "Das injetoras da lista: é a máquina, o molde, o material ou quem opera?"
       - "Antes de cobrar o turno, confirme se o ciclo base do cadastro está certo."
@@ -1207,6 +1313,11 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "{valor} ordens de serviço abertas há mais de 30 dias"
+    resumo: >-
+      {ABERTAS} ordens abertas, {IDADE_MEDIANA} de idade mediana e a mais velha com
+      {IDADE_MAX}. {COM_EQPTO_PARADO} dizem ter equipamento parado e {ABERTAS_ACIMA_180D}
+      passam de 180 dias. De referência: {FECHADAS_365D} foram fechadas em 12 meses,
+      {MEDIANA_FECHAMENTO} de mediana.
     passos:
       - "PRIMEIRO: quantas dessas já foram executadas e só não foram fechadas no sistema? Feche-as."
       - "Do que sobrar: as 330 que dizem 'equipamento parado' — está parado mesmo?"
@@ -1253,6 +1364,9 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "Só {valor}% das ordens de serviço são preventivas"
+    resumo: >-
+      {PREVENTIVAS} preventivas contra {CORRETIVAS} corretivas em {OS_JANELA} ordens na
+      janela.
     passos:
       - "Existe plano de preventiva escrito, com periodicidade por equipamento?"
       - "Se existe e não é cumprido: falta gente, peça ou janela de parada?"
@@ -1291,6 +1405,10 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "R$ {valor} faturados há mais de 15 dias sem canhoto"
+    resumo: >-
+      {NOTAS_SEM_CANHOTO} notas sem canhoto de {NOTAS_JANELA} na janela — só
+      {PCT_COM_CANHOTO} voltaram. Frota própria devolve {PCT_CANHOTO_PROPRIA},
+      transportadora {PCT_CANHOTO_TRANSP}.
     passos:
       - "A entrega própria devolve canhoto em 1 de cada 10; a transportadora, em 6 de cada 10. O que o terceiro faz que a frota não faz?"
       - "Qual o processo de retorno do canhoto da frota hoje, e onde ele quebra?"
@@ -1341,6 +1459,10 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams, email] }
   acao:
     titulo: "E-commerce em {valor}% do ritmo histórico"
+    resumo: >-
+      {VLR_MTD} no mês em {PEDIDOS_MTD} pedidos, {VLR_DIA_ATUAL} por dia contra
+      {VLR_DIA_HIST} no histórico. Ticket de {TICKET_MTD}, contra {TICKET_MEDIO_HIST} de
+      média.
     passos:
       - "Quebra por plataforma: qual caiu e por quê — verba, ranking, ruptura ou preço?"
       - "O ticket está subindo ou só o volume? Crescer por pedido barato não escala."
@@ -1388,6 +1510,10 @@ kpis:
   notificar: { verde: [], amarelo: [teams], vermelho: [teams] }
   acao:
     titulo: "{valor} SKUs venderam menos de R$ 100 em 90 dias"
+    resumo: >-
+      {SKUS_ATE_80PCT} SKUs fazem 80% da venda, de {SKUS_VENDIDOS} que tiveram saída. A
+      cauda somou {VLR_CAUDA} sobre {VLR_TOTAL} do canal, e {SKUS_ATE_2_UNID} venderam no
+      máximo 2 unidades.
     passos:
       - "Para cada um da cauda: sobe verba, corrige preço, melhora foto, ou sai do ar?"
       - "Os que saem: avise o PCP e o estoque, para não produzir nem guardar."

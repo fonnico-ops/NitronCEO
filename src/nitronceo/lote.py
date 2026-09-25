@@ -31,6 +31,7 @@ from datetime import datetime
 from .acoes import Acao
 from .avaliador import Nivel
 from .config import Config, Papel
+from .numeros import e_base, frase, unidade_de, vestir_lista
 
 ICONE = {
     Nivel.VERDE: "🟢",
@@ -100,16 +101,14 @@ def montar(
             "",
         ]
 
-        numeros = {
-            k: v for k, v in acao.contexto.items()
-            if k not in (kpi["metrica"], "LISTA", "ROTULO")
-            and not isinstance(v, str)
-        }
-        if numeros:
-            linhas += [f"- {k}: {v}" for k, v in list(numeros.items())[:6]]
+        resumo = _resumo(acao, kpi)
+        if resumo:
+            linhas += [resumo, ""]
+
+        for titulo_lista, itens in _detalhe(acao):
+            linhas.append(f"**{titulo_lista}**")
+            linhas += [f"- {i}" for i in itens]
             linhas.append("")
-        if acao.contexto.get("LISTA"):
-            linhas += [f"Detalhe: {acao.contexto['LISTA']}", ""]
 
         linhas.append("**O que preciso de você:**")
         linhas += [f"- {p}" for p in acao.passos]
@@ -118,7 +117,6 @@ def montar(
             f"Prazo: **{acao.prazo:%d/%m às %H:%M}** "
             f"({acao.horas_restantes():.0f}h) · para encerrar este ponto, "
             f"escreva **RESOLVIDO [NTR-{acao.id[:8]}]**",
-            f"_Base: {kpi['sql']}_",
             "",
         ]
 
@@ -144,6 +142,77 @@ def montar(
         contatos_ghl=papel.contatos_ghl,
         emails=papel.emails,
     )
+
+
+# Quanto um número pesa na decisão de quem lê. Dinheiro primeiro: é o que
+# faz um gerente parar o que está fazendo. Contagem depois, porque dá o
+# tamanho do problema. Percentual e média por último — explicam, não
+# convocam.
+PESO_UNIDADE = {"reais": 0, "contagem": 1, "dias": 2, "horas": 2,
+                "minutos": 2, "percentual": 3}
+
+# Quantos números cabem antes de a linha virar planilha.
+MAX_NUMEROS = 4
+
+
+def _relevancia(par: tuple[str, float]) -> tuple[int, int, float]:
+    coluna, valor = par
+    return (int(e_base(coluna)),
+            PESO_UNIDADE.get(unidade_de(coluna), 4),
+            -abs(valor or 0))
+
+
+def _resumo(acao: Acao, kpi: dict) -> str:
+    """Os números da cobrança numa linha, do mais decisivo ao menos.
+
+    A métrica que disparou o nível já está no título — repeti-la aqui só
+    gastaria a primeira linha, que é a única que muita gente lê.
+    """
+    if kpi["acao"].get("resumo"):
+        return _preencher(kpi["acao"]["resumo"], acao.contexto)
+
+    numeros = [
+        (k, v) for k, v in acao.contexto.items()
+        if k not in (kpi["metrica"], "LISTA", "LISTA_CAUDA", "ROTULO")
+        and isinstance(v, (int, float)) and not isinstance(v, bool)
+    ]
+    if not numeros:
+        return ""
+
+    numeros.sort(key=_relevancia)
+    ditos = [frase(k, v) for k, v in numeros[:MAX_NUMEROS]]
+    return f"**{ditos[0]}**" + ("".join(f" · {d}" for d in ditos[1:]))
+
+
+def _preencher(molde: str, contexto: dict) -> str:
+    """`{VLR_TRAVADO}` vira `R$ 505.694,43` — sem o rótulo, que o molde já dá."""
+    from .numeros import formatar_numero
+    saida = molde
+    for chave, valor in contexto.items():
+        marca = "{" + chave + "}"
+        if marca in saida:
+            saida = saida.replace(marca, formatar_numero(valor, unidade_de(chave)))
+    return saida
+
+
+def _detalhe(acao: Acao) -> list[tuple[str, list[str]]]:
+    """As listas nomeadas do SQL viram bullets.
+
+    É a parte que mais pesa para quem responde: `INJETORA 31: 110,3h em 3
+    paradas` é acionável, `69 paradas` não é. O LISTAGG dos SQLs separa os
+    itens por ` · `; quando vier como frase única, vai como frase única —
+    quebrar por vírgula partiria `(35d, Atraso)` no meio.
+    """
+    blocos = []
+    for chave, titulo in (("LISTA", "Onde está concentrado:"),
+                          ("LISTA_CAUDA", "Os itens da cauda:")):
+        bruto = acao.contexto.get(chave)
+        if not isinstance(bruto, str) or not bruto.strip():
+            continue
+        texto = vestir_lista(bruto.strip())
+        itens = [x.strip() for x in texto.split(" · ") if x.strip()]
+        blocos.append((titulo, itens[:8]))
+    return blocos
 
 
 def _abertura(quantos: int, criticos: int) -> str:

@@ -55,7 +55,7 @@ def formatar(valor: float | None, unidade: str) -> str:
     if unidade == "reais":
         return f"{valor:,.2f}".replace(",", "X").replace(".", ",").replace("X", ".")
     if unidade == "percentual":
-        return f"{valor:.1f}"
+        return f"{valor:.1f}".replace(".", ",")
     return f"{valor:,.0f}".replace(",", ".")
 
 

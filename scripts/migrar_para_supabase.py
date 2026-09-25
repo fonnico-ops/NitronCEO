@@ -69,11 +69,20 @@ def migrar(caminho_sqlite: str, forcar: bool = False) -> int:
                 " valor, unidade, estado, escalonamentos, criada_em, prazo,"
                 " respondida_em, resposta, contexto)"
                 " VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)"
+                # `contexto` PRECISA entrar aqui. Sem ele, uma linha que já
+                # existisse no Postgres com apuração mais pobre sobrevivia à
+                # migração — foi o que aconteceu em 23/09/2026: as 21 ações
+                # subiram sem o LISTAGG dos SQLs, e as cobranças de 24/09
+                # saíram com "69 paradas" no lugar de "INJETORA 31: 110,3h em
+                # 3 paradas". O detalhe nomeado é o que faz alguém responder.
                 " ON CONFLICT (id) DO UPDATE SET"
                 "  estado = EXCLUDED.estado,"
                 "  escalonamentos = EXCLUDED.escalonamentos,"
                 "  respondida_em = EXCLUDED.respondida_em,"
-                "  resposta = EXCLUDED.resposta",
+                "  resposta = EXCLUDED.resposta,"
+                "  titulo = EXCLUDED.titulo,"
+                "  valor = EXCLUDED.valor,"
+                "  contexto = EXCLUDED.contexto",
                 (
                     a["id"], a["kpi_id"], a["titulo"],
                     Json(json.loads(a["passos"] or "[]")),
